@@ -27,7 +27,7 @@ ood_analysis = config.ood_analysis
 enable_cuda = True
 device = torch.device('cuda:' + str(gpu_num) if torch.cuda.is_available() and enable_cuda else 'cpu')
 
-all_experiments = 'experiments_CT/'
+all_experiments = 'experiments/'
 if os.path.exists(all_experiments) == False:
     os.mkdir(all_experiments)
 
@@ -121,7 +121,6 @@ if train_funknn:
             cbp = cbp.to(device)
             
             for i in range(num_batch_pixels):
-                # cbp = cbp.reshape(-1, image_size, image_size, c).permute(0,3,1,2)
 
                 coords = get_mgrid(image_size).reshape(-1, 2)
                 coords = torch.unsqueeze(coords, dim = 0)
