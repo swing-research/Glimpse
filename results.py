@@ -72,14 +72,15 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
     
 
     # FBP:
-    cbp = model(0, sinogram, return_cbp = True)
-    cbp_np = cbp.detach().cpu().numpy().mean(axis = 1) * np.pi/2
-    cbp_write = cbp_np[:num_samples_write].reshape(
-        ngrid, ngrid,
-        config.image_size, config.image_size,1).swapaxes(1, 2).reshape(ngrid*config.image_size, -1, 1)
+    # cbp = model(0, sinogram, return_cbp = True)
+    # cbp_np = cbp.detach().cpu().numpy().mean(axis = 1) * np.pi/2
+
+    # cbp_write = cbp_np[:num_samples_write].reshape(
+    #     ngrid, ngrid,
+    #     config.image_size, config.image_size,1).swapaxes(1, 2).reshape(ngrid*config.image_size, -1, 1)
     
-    plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_fbp.png'),
-               cbp_write[:,:,0], cmap = cmap)
+    # plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_fbp.png'),
+    #            cbp_write[:,:,0], cmap = cmap)
 
 
     scales = [i for i in range(int(np.log2(2*max_scale)))]
@@ -119,7 +120,8 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
         
         if i == 0:
             psnr_recon = PSNR(images_np, recon_np)
-            psnr_cbp = PSNR(images_np, cbp_np)
+            # psnr_cbp = PSNR(images_np, cbp_np)
+            psnr_cbp = 0
 
             print('PSNR_fbp_f{}: {:.1f} | PSNR_recon_f{}: {:.1f}'.format(scales[i],
                 psnr_cbp, scales[i], psnr_recon))

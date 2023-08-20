@@ -108,17 +108,23 @@ if train_funknn:
     if plot_per_num_epoch == -1:
         plot_per_num_epoch = epochs_funknn + 1 # only plot in the last epoch
     
+    factor = 2
     loss_funknn_plot = np.zeros([epochs_funknn])
     for ep in range(epochs_funknn):
         model.train()
         t1 = default_timer()
         loss_funknn_epoch = 0
 
-        for image, cbp in train_loader:
+        for image, sinogram in train_loader:
             
             batch_size = image.shape[0]
             image = image.to(device)
-            cbp = cbp.to(device)
+            sinogram = sinogram.to(device)
+            # print(sinogram.unsqueeze(1).shape)
+            # sinogram = F.interpolate(sinogram.unsqueeze(1),
+            #                          size = (int(sinogram.shape[1]/factor),sinogram.shape[2]),
+            #                          align_corners=True, mode = 'bilinear')[:,0]
+            # print(sinogram.shape)
             
             for i in range(num_batch_pixels):
 
@@ -131,7 +137,7 @@ if train_funknn:
                 batch_coords = coords[:,pixels]
                 batch_image = image[:,pixels]
 
-                out = model(batch_coords, cbp)
+                out = model(batch_coords, sinogram)
                 mse_loss = myloss(out.reshape(batch_size, -1) , batch_image.reshape(batch_size, -1) )
                 kl = kl_loss(model).to(device)
                 total_loss = mse_loss  + kl_weight*kl

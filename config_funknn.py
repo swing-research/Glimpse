@@ -2,7 +2,7 @@ import numpy as np
 
 epochs_funknn = 200 # number of epochs to train funknn network
 batch_size = 64
-gpu_num = 2 # GPU number
+gpu_num = 0 # GPU number
 exp_desc = 'test' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 c = 30 # Number of channels of the dataset
@@ -13,7 +13,7 @@ Bayesian = False
 kl_weight = 0.01
 num_training = -1
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
-learnable_filter = False
+learnable_filter = True
 missing_cone = 'complete'
 w_size = 9
 learning_rate = 1e-4
