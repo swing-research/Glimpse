@@ -9,35 +9,43 @@ from utils import *
 
 
 
-def grab(coords, sinogram):
-    # x: [b, n, 2]
-    b = coords.shape[0]
+# def grab(coords, sinogram):
+#     # x: [b, n, 2]
+#     b = coords.shape[0]
+#     # print(coords.min(), coords.max())
+#     # coords = reflect_coords((coords + 0.5) * config.image_size , 0, config.image_size)
+#     # coords = coords/config.image_size - 0.5
+#     coords = 2 * reflect_coords(coords , -0.5, 0.5)
+#     coords = coords/np.sqrt(2)
+#     # print(coords.min(), coords.max())
 
-    col = sinogram.permute(0,2,1).unsqueeze(1)
-    coords = coords.unsqueeze(1) * config.image_size
-    xpr = coords[:,:,:,0]
-    ypr = coords[:,:,:,1]
+#     col = sinogram.permute(0,2,1).unsqueeze(1)
+#     coords = coords.unsqueeze(1) #* (config.image_size+1)
+#     xpr = coords[:,:,:,0]
+#     ypr = coords[:,:,:,1]
     
-    n = int(np.ceil(config.image_size * np.sqrt(2)))
-    s = (n-1)/2
-    theta_rad = torch.deg2rad(torch.tensor(
-        config.theta[None,...,None, None],
-        dtype = torch.float32)).to(coords.device)
-    ypr = ypr/s
-    xpr = xpr/s
-    xpr = xpr.unsqueeze(1).repeat(1,config.c,1,1)
-    ypr = ypr.unsqueeze(1).repeat(1,config.c,1,1)
+#     # n = int(np.ceil((config.image_size+1) * np.sqrt(2)))
+#     # s = (n-1)/2
+#     theta_rad = torch.deg2rad(torch.tensor(
+#         config.theta[None,...,None, None],
+#         dtype = torch.float32)).to(coords.device)
+#     # ypr = ypr/s
+#     # xpr = xpr/s
+#     xpr = xpr.unsqueeze(1).repeat(1,config.c,1,1)
+#     ypr = ypr.unsqueeze(1).repeat(1,config.c,1,1)
 
-    t = ypr * torch.cos(theta_rad) - xpr * torch.sin(theta_rad)
-    t = t[...,None]
-    z = (torch.arange(config.c).to(coords.device) - (config.c-1)/2)/((config.c-1)/2)
-    z = z[...,None,None,None]
-    z = z[None,...].repeat(t.shape[0],1,t.shape[2], t.shape[3],1)
-    t = torch.concat((t, z), dim = -1)
-    t = t.reshape(b, config.c * t.shape[2], t.shape[3], 2)
-    cbp = F.grid_sample(col, t, align_corners= True, mode = 'bicubic', padding_mode='reflection')
-    cbp = cbp.reshape(b, config.c, t.shape[2])
-    return cbp
+#     t = ypr * torch.cos(theta_rad) - xpr * torch.sin(theta_rad)
+#     # print(t.min(), t.max())
+#     t = t[...,None]
+#     z = (torch.arange(config.c).to(coords.device) - (config.c-1)/2)/((config.c-1)/2)
+#     z = z[...,None,None,None]
+#     z = z[None,...].repeat(t.shape[0],1,t.shape[2], t.shape[3],1)
+#     t = torch.concat((t, z), dim = -1)
+#     t = t.reshape(b, config.c * t.shape[2], t.shape[3], 2)
+#     # print(t.min(), t.max())
+#     cbp = F.grid_sample(col, t, align_corners= True, mode = 'bilinear')
+#     cbp = cbp.reshape(b, config.c, t.shape[2])
+#     return cbp
 
 
 def squeeze(x , f):
@@ -60,6 +68,14 @@ def reflect_coords(ix, min_val, max_val):
 
     ix[ix>max_val] = ix[ix>max_val] - 2*pos_delta
     ix[ix<min_val] = ix[ix<min_val] + 2*neg_delta
+
+    return ix
+
+
+def circular_coords(ix, min_val, max_val):
+
+    ix[ix>max_val] = ix[ix>max_val] - (max_val - min_val)
+    ix[ix<min_val] = ix[ix<min_val] + (max_val - min_val)
 
     return ix
 
@@ -133,7 +149,7 @@ class FunkNN(nn.Module):
         self.c = c
 
         fcs = []
-        prev_unit = config.w_size * config.w_size * self.c + 2
+        prev_unit = config.w_size * config.w_size * self.c #+ 2
         # hidden_units = [10,10,10,10,9,9,9,9,8,8,8,7,7,7,6,6,6,5,5,5,4,4,4,0]
         hidden_units = [9,9,8,8,7,7,6,6,6,0]
         hidden_units = np.power(2, hidden_units)
@@ -168,13 +184,13 @@ class FunkNN(nn.Module):
         alpha = torch.ones(1)
         self.alpha = nn.Parameter(alpha.clone().detach(), requires_grad=True)
 
-        n = int(np.ceil(config.image_size * np.sqrt(2)))
+        n = int(np.ceil((config.image_size+1) * np.sqrt(2)))
         projection_size_padded = max(64, int(2 ** np.ceil(np.log2(2 * n))))
         fourier_filter = _get_fourier_filter(projection_size_padded, config.filter_init)
         fourier_filter = torch.tensor(fourier_filter, dtype = torch.float32)
         self.fourier_filter = nn.Parameter(fourier_filter.clone().detach(), requires_grad=config.learnable_filter) 
 
-    def grid_sample_customized(self, image, grid, mode = 'cubic_conv' , pad = 'reflect', align_corners = False):
+    def grid_sample_customized(self, image, grid, mode = 'bilinear' , pad = 'circular', align_corners = True):
         '''Differentiable grid_sample:
         equivalent performance with torch.nn.functional.grid_sample can be obtained by setting
         align_corners = True,
@@ -242,6 +258,21 @@ class FunkNN(nn.Module):
 
                 ix_se = reflect_coords(ix_se, boundary_x[0], boundary_x[1])
                 iy_se = reflect_coords(iy_se, boundary_y[0], boundary_y[1])
+
+            
+            elif pad == 'circular':
+                
+                ix_nw = circular_coords(ix_nw, boundary_x[0], boundary_x[1])
+                iy_nw = circular_coords(iy_nw, boundary_y[0], boundary_y[1])
+
+                ix_ne = circular_coords(ix_ne, boundary_x[0], boundary_x[1])
+                iy_ne = circular_coords(iy_ne, boundary_y[0], boundary_y[1])
+
+                ix_sw = circular_coords(ix_sw, boundary_x[0], boundary_x[1])
+                iy_sw = circular_coords(iy_sw, boundary_y[0], boundary_y[1])
+
+                ix_se = circular_coords(ix_se, boundary_x[0], boundary_x[1])
+                iy_se = circular_coords(iy_se, boundary_y[0], boundary_y[1])
 
 
             elif pad == 'border':
@@ -326,6 +357,47 @@ class FunkNN(nn.Module):
             return out_val
         
 
+    
+    def grab(self, coords, sinogram):
+        # x: [b, n, 2]
+        b = coords.shape[0]
+        # print(coords.min(), coords.max())
+        # coords = reflect_coords((coords + 0.5) * config.image_size , 0, config.image_size)
+        # coords = coords/config.image_size - 0.5
+        coords = 2 * reflect_coords(coords , -0.5, 0.5)
+        coords = coords/np.sqrt(2)
+        # print(coords.min(), coords.max())
+
+        col = sinogram.permute(0,2,1).unsqueeze(1)
+        coords = coords.unsqueeze(1) #* (config.image_size+1)
+        xpr = coords[:,:,:,0]
+        ypr = coords[:,:,:,1]
+        
+        # n = int(np.ceil((config.image_size+1) * np.sqrt(2)))
+        # s = (n-1)/2
+        theta_rad = torch.deg2rad(torch.tensor(
+            config.theta[None,...,None, None],
+            dtype = torch.float32)).to(coords.device)
+        # ypr = ypr/s
+        # xpr = xpr/s
+        xpr = xpr.unsqueeze(1).repeat(1,config.c,1,1)
+        ypr = ypr.unsqueeze(1).repeat(1,config.c,1,1)
+
+        t = ypr * torch.cos(theta_rad) - xpr * torch.sin(theta_rad)
+        # print(t.min(), t.max())
+        t = t[...,None]
+        z = (torch.arange(config.c).to(coords.device) - (config.c-1)/2)/((config.c-1)/2)
+        z = z[...,None,None,None]
+        z = z[None,...].repeat(t.shape[0],1,t.shape[2], t.shape[3],1)
+        t = torch.concat((t, z), dim = -1)
+        t = t.reshape(b, config.c * t.shape[2], t.shape[3], 2)
+        cbp = F.grid_sample(col, t, align_corners= True, mode = 'bilinear')
+        # cbp = self.grid_sample_customized(col, t, mode = 'bilinear' , pad = 'circular', align_corners = True)
+        cbp = cbp.reshape(b, config.c, t.shape[2])
+        return cbp
+
+        
+
     def sinogram_sampler(self, sinogram, coordinate , output_size):
         '''Cropper using Spatial Transformer'''
         # Coordinate shape: b X b_pixels X 2
@@ -346,11 +418,11 @@ class FunkNN(nn.Module):
 
         theta = theta.reshape(b*b_pixels , 2 , 3)
 
-        f = F.affine_grid(theta, size=(b * b_pixels, config.c, output_size, output_size), align_corners=False)
+        f = F.affine_grid(theta, size=(b * b_pixels, config.c, output_size, output_size), align_corners=True)
         f = f.reshape(b, b_pixels , output_size, output_size,2)
         f = f.reshape(b, b_pixels * output_size, output_size,2).permute(0,3,1,2)
         f = f.reshape(b, 2, b_pixels * output_size * output_size).permute(0,2,1).flip(dims=[2])
-        sinogram_samples = grab(f/2, sinogram)
+        sinogram_samples = self.grab(f/2, sinogram)
         sinogram_samples = sinogram_samples.reshape(b, -1, b_pixels * output_size, output_size)
 
         sinogram_samples = sinogram_samples.permute(0,2,3,1)
@@ -360,71 +432,45 @@ class FunkNN(nn.Module):
 
         return sinogram_samples
     
-
-
     
-    def cropper(self, image, coordinate , output_size):
-        '''Cropper using Spatial Transformer'''
-        # Coordinate shape: b X b_pixels X 2
-        # image shape: b X c X h X w
-        d_coordinate = coordinate * 2
-        b , c , h , w = image.shape
-        b_pixels = coordinate.shape[1]
-        crop_size = 2 * (output_size-1)/(h-1)
-        x_m_x = crop_size/2
-        x_p_x = d_coordinate[:,:,1]
-        y_m_y = crop_size/2
-        y_p_y = d_coordinate[:,:,0]
-        theta = torch.zeros(b, b_pixels, 2,3).to(image.device)
-        theta[:,:,0,0] = x_m_x * self.ws1
-        theta[:,:,0,2] = x_p_x
-        theta[:,:,1,1] = y_m_y * self.ws2
-        theta[:,:,1,2] = y_p_y
+    def forward(self, coordinate, sinogram, factor = 1):
+        
+        # if factor > 1:
+        #     # factor = np.random.uniform(low = 1, high = 4, size = 1)[0]
+        #     factors = [1,2]
+        #     idx = np.random.randint(low= 0, high = 2, size = 1)[0]
+        #     factor = factors[idx]
+            # print(factor)
 
-        theta = theta.reshape(b*b_pixels , 2 , 3)
 
-        f = F.affine_grid(theta, size=(b * b_pixels, c, output_size, output_size), align_corners=False)
-        f = f.reshape(b, b_pixels , output_size, output_size,2)
-        f = f.reshape(b, b_pixels * output_size, output_size,2)
-
-        # Non-differentiable grid_sampler
-        image_cropped = F.grid_sample(image, f, mode = 'bicubic', align_corners=False, padding_mode='reflection')
-        # Differentiable grid_sampler, well-suited for solving PDEs
-        # image_cropped = self.grid_sample_customized(image, f, mode = 'bilinear')
-
-        image_cropped = image_cropped.permute(0,2,3,1)
-        image_cropped = image_cropped.reshape(b, b_pixels , output_size, output_size,c)
-        image_cropped = image_cropped.reshape(b* b_pixels , output_size, output_size,c)
-        image_cropped = image_cropped.permute(0,3,1,2)
-
-        return image_cropped
-    
-
-    def forward(self, coordinate, x, return_cbp = False, factor = 1):
-
-        b , n, n_angles = x.shape
+        b , n, _ = sinogram.shape
 
         projection_size_padded = max(64, int(2 ** np.ceil(np.log2(2 * n))))
         pad_width = (0,0,0, projection_size_padded - n)
 
-        padded_sinogram = F.pad(x, pad_width)
+        padded_sinogram = F.pad(sinogram, pad_width)
         projection = torch.fft.fft(padded_sinogram, dim=1) * self.fourier_filter
         filtered_sinogram = torch.fft.ifft(projection, dim=1)[:,:n].real
- 
+
+        # filtered_sinogram = F.interpolate(filtered_sinogram.unsqueeze(1),
+        #                              size = (int(config.image_size/(2*factor)) + 1,sinogram.shape[2]),
+        #                              align_corners=True, mode = 'bilinear')[:,0]
+
+        # print(filtered_sinogram.shape)
         b , b_pixels , _ = coordinate.shape
 
         x = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
-        mid_pix = torch.mean(x[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
+        # mid_pix = torch.mean(x[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
 
         x = torch.flatten(x, 1)
-        coordinate = coordinate.reshape(b*b_pixels, -1)
-        x = torch.cat((coordinate, x), axis = 1)
+        # coordinate = coordinate.reshape(b*b_pixels, -1)
+        # x = torch.cat((coordinate, x), axis = 1)
 
         for i in range(len(self.MLP)-1):
             x = F.relu(self.MLP[i](x))
 
         x = self.MLP[-1](x)
-        x = x + self.alpha * mid_pix # external skip connection to the centric pixel
+        # x = x + self.alpha * mid_pix # external skip connection to the centric pixel
         x = x.reshape(b, b_pixels, -1)
         
         return x

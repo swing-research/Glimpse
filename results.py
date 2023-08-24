@@ -45,10 +45,10 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
         images_x2 = images_x2.reshape(-1, 2*image_size, 2*image_size, 1)
 
         # GTx2:
-        images_x2_np = images_x2.detach().cpu().numpy()[:,:,:,0]
-        images_x2_write = images_x2_np[:num_samples_write].reshape(
+        images_x2_np = images_x2.detach().cpu().numpy()[:num_samples_write,:,:,0]
+        images_x2_write = images_x2_np.reshape(
             ngrid, ngrid,
-            2*config.image_size, 2*config.image_size,1).swapaxes(1, 2).reshape(ngrid*2*config.image_size, -1, 1)
+            2*config.image_size, 2*config.image_size,1).swapaxes(1, 2).reshape(ngrid*(2*config.image_size), -1, 1)
         
         plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_gt2.png'),
             images_x2_write[:,:,0], cmap = cmap)
@@ -65,7 +65,7 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
     images_np = images.detach().cpu().numpy()[:,:,:,0]
     image_write = images_np[:num_samples_write].reshape(
         ngrid, ngrid,
-        config.image_size, config.image_size,1).swapaxes(1, 2).reshape(ngrid*config.image_size, -1, 1)
+        config.image_size, config.image_size,1).swapaxes(1, 2).reshape(ngrid*(config.image_size), -1, 1)
     
     plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_gt.png'),
         image_write[:,:,0], cmap = cmap)
@@ -88,31 +88,38 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
 
     for i in range(len(scales)):
         res = scales[i]*image_size
-        factor = 1
 
         if i > 0:
             
             recon_bicubic = F.interpolate(recon, size = res, antialias = True, mode = 'bicubic')
             recon_bicubic = recon_bicubic.detach().cpu().numpy()[:,0]
             recon_bicubic_write = recon_bicubic[:num_samples_write].reshape(
-                ngrid, ngrid, res, res, 1).swapaxes(1, 2).reshape(ngrid*res, -1, 1)
+                ngrid, ngrid, res, res, 1).swapaxes(1, 2).reshape(ngrid*(res), -1, 1)
 
             plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_bicubic_{scales[i]}.png'),
                 recon_bicubic_write[:,:,0], cmap = cmap)
-            factor = 2
 
         # Recon:
         coords = get_mgrid(res).reshape(-1, 2)
         coords = torch.unsqueeze(coords, dim = 0)
         coords = coords.expand(images.shape[0] , -1, -1).to(device)
-        print(factor)
-        recon_np = batch_sampling(sinogram, coords,1, model, factor)
+        recon_np = batch_sampling(sinogram, coords,1, model)
         recon_np = np.reshape(recon_np, [-1, res, res])
         recon_write = recon_np[:num_samples_write].reshape(
-            ngrid, ngrid, res, res, 1).swapaxes(1, 2).reshape(ngrid*res, -1, 1)
+            ngrid, ngrid, res, res, 1).swapaxes(1, 2).reshape(ngrid*(res), -1, 1)
 
         plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_recon_{scales[i]}.png'),
-            recon_write[:,:,0], cmap = cmap)      
+            recon_write[:,:,0], cmap = cmap)  
+
+
+        if i == 0:
+            error = images_np - recon_np  
+        else:
+            error = images_x2_np - recon_np  
+        plt.imshow(error[0], cmap = 'seismic')
+        plt.colorbar()
+        plt.savefig(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_error_{scales[i]}.png'))
+        plt.close()
 
         if subset == 'ood' and ep == -1:
             np.savez(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_recon_{scales[i]}.npz'),

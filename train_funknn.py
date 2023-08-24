@@ -19,7 +19,6 @@ epochs_funknn = config.epochs_funknn
 batch_size = config.batch_size
 gpu_num = config.gpu_num
 exp_desc = config.exp_desc
-image_size = config.image_size
 c = config.c
 train_funknn = config.train_funknn
 ood_analysis = config.ood_analysis
@@ -33,7 +32,7 @@ if os.path.exists(all_experiments) == False:
 
 # experiment path
 exp_path = all_experiments + 'funknn_' \
-    + str(image_size) + '_' + str(config.c) + '_' + exp_desc
+    + str(config.image_size) + '_' + str(config.c) + '_' + exp_desc
 
 
 if os.path.exists(exp_path) == False:
@@ -57,16 +56,13 @@ print('---> epochs_funknn: {}'.format(epochs_funknn))
 print('---> batch_size: {}'.format(batch_size))
 print('---> Learning rate: {}'.format(config.learning_rate))
 print('---> experiment path: {}'.format(exp_path))
-print('---> image size: {}'.format(image_size))
+print('---> image size: {}'.format(config.image_size))
 
 # Dataset:
-
-# train_dataset = CT_CBP_loader(config.train_path)
-# test_dataset = CT_CBP_loader(config.test_path)
-# train_dataset = CT_CBP_generator(config.train_path, noise_snr = 200)
-# test_dataset = CT_CBP_generator(config.test_path, noise_snr = 200)
-train_dataset = CT_sinogram(config.train_path, noise_snr = config.train_noise_snr, self_supervised = False)
-test_dataset = CT_sinogram(config.test_path, noise_snr = config.test_noise_snr, test_set= True)
+# train_dataset = CT_sinogram(config.train_path, noise_snr = config.train_noise_snr, self_supervised = False)
+# test_dataset = CT_sinogram(config.test_path, noise_snr = config.test_noise_snr, test_set= True)
+train_dataset = CT_images(config.train_path, set = 'train', noise_snr = config.train_noise_snr)
+test_dataset = CT_images(config.test_path, set = 'test', noise_snr = config.test_noise_snr)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=24, shuffle = True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, num_workers=24, shuffle = False)
@@ -128,19 +124,19 @@ if train_funknn:
             
             for i in range(num_batch_pixels):
 
-                coords = get_mgrid(image_size).reshape(-1, 2)
+                coords = get_mgrid(config.image_size).reshape(-1, 2)
                 coords = torch.unsqueeze(coords, dim = 0)
                 coords = coords.expand(batch_size , -1, -1).to(device)
                 
                 optimizer_funknn.zero_grad()
-                pixels = np.random.randint(low = 0, high = image_size**2, size = batch_pixels)
+                pixels = np.random.randint(low = 0, high = (config.image_size)**2, size = batch_pixels)
                 batch_coords = coords[:,pixels]
                 batch_image = image[:,pixels]
 
-                out = model(batch_coords, sinogram)
+                out = model(batch_coords, sinogram, factor = 2)
                 mse_loss = myloss(out.reshape(batch_size, -1) , batch_image.reshape(batch_size, -1) )
-                kl = kl_loss(model).to(device)
-                total_loss = mse_loss  + kl_weight*kl
+                # kl = kl_loss(model).to(device)
+                total_loss = mse_loss  #+ kl_weight*kl
 
                 total_loss.backward()
                 optimizer_funknn.step()

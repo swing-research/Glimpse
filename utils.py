@@ -106,8 +106,8 @@ def relative_mse_loss(x_true, x_pred):
     return np.mean(noise_power/signal_power)
 
 
-def batch_sampling(image_recon, coords, c, model, factor):
-    s = 64
+def batch_sampling(image_recon, coords, c, model):
+    s = 512
     # model.freeze()
     for m in model.modules() :
         try:
@@ -119,7 +119,7 @@ def batch_sampling(image_recon, coords, c, model, factor):
     for i in range(np.shape(coords)[1]//s):
         
         batch_coords = coords[:,i*s: (i+1)*s]
-        out = model(batch_coords, image_recon, factor = factor).detach().cpu().numpy()
+        out = model(batch_coords, image_recon).detach().cpu().numpy()
         outs[:,i*s: (i+1)*s] = out
     
     for m in model.modules() :
@@ -171,7 +171,7 @@ def simpleaxis(ax):
 def get_mgrid(sidelen):
     # Generate 2D pixel coordinates from an image of sidelen x sidelen
     pixel_coords = np.stack(np.mgrid[:sidelen,:sidelen], axis=-1)[None,...].astype(np.float32)
-    pixel_coords /= (sidelen)   
+    pixel_coords /= (sidelen-1)   
     pixel_coords -= 0.5
     pixel_coords = torch.Tensor(pixel_coords).view(-1, 2)
     return pixel_coords
