@@ -116,7 +116,7 @@ def batch_sampling(image_recon, coords, c, model):
             pass
 
     outs = np.zeros([np.shape(coords)[0], np.shape(coords)[1], c])
-    for i in range(np.shape(coords)[1]//s):
+    for i in range(int(np.ceil(np.shape(coords)[1]/s))):
         
         batch_coords = coords[:,i*s: (i+1)*s]
         out = model(batch_coords, image_recon).detach().cpu().numpy()
@@ -170,10 +170,10 @@ def simpleaxis(ax):
     
 def get_mgrid(sidelen):
     # Generate 2D pixel coordinates from an image of sidelen x sidelen
-    pixel_coords = np.stack(np.mgrid[:sidelen,:sidelen], axis=-1)[None,...].astype(np.float32)
+    pixel_coords = np.stack(np.mgrid[:sidelen,:sidelen], axis=-1).astype(np.float32)
     pixel_coords /= (sidelen-1)   
     pixel_coords -= 0.5
-    pixel_coords = torch.Tensor(pixel_coords).view(-1, 2)
+    pixel_coords = torch.Tensor(pixel_coords).reshape(-1, 2)
     return pixel_coords
 
 

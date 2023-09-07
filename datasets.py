@@ -131,10 +131,21 @@ class CT_images(torch.utils.data.Dataset):
         file_name = self.name_list[idx]
         image = np.load(os.path.join(self.directory,file_name))
         image = torch.tensor(image, dtype = torch.float32)
-        image_256 = F.interpolate(image[None,None,...], size = config.image_size * 2, mode = 'bilinear', antialias= True)
-        image_128 = F.interpolate(image_256, size = config.image_size, mode = 'bilinear', antialias= True)
-        image_128_np = image_128.detach().cpu().numpy()[0,0]
-        sinogram = radon(image_128_np, theta=config.theta, circle= False)
+        image_256 = F.interpolate(image[None,None,...], size = config.image_size * 2+1,
+                                  mode = 'bilinear',
+                                  antialias= True,
+                                  align_corners= True)
+        image_128 = F.interpolate(image_256, size = config.image_size+1,
+                                  mode = 'bilinear',
+                                  antialias= True,
+                                  align_corners= True)
+        
+        image_64 = F.interpolate(image_128, size = config.image_size//2+1,
+                                  mode = 'bilinear',
+                                  antialias= True,
+                                  align_corners= True)
+        image_64_np = image_64.detach().cpu().numpy()[0,0]
+        sinogram = radon(image_64_np, theta=config.theta, circle= False)
 
         noise_sigma = 10**(-self.noise_snr/20.0)*np.sqrt(np.mean(np.sum(
             np.square(np.reshape(sinogram, (1 , -1))) , -1)))

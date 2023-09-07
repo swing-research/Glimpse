@@ -62,12 +62,12 @@ def squeeze(x , f):
 
 def reflect_coords(ix, min_val, max_val):
 
-    pos_delta = ix[ix>max_val] - max_val
+    pos_delta = ix[ix>=max_val] - max_val
 
-    neg_delta = min_val - ix[ix < min_val]
+    neg_delta = min_val - ix[ix <= min_val]
 
-    ix[ix>max_val] = ix[ix>max_val] - 2*pos_delta
-    ix[ix<min_val] = ix[ix<min_val] + 2*neg_delta
+    ix[ix>=max_val] = ix[ix>=max_val] - 2*pos_delta
+    ix[ix<=min_val] = ix[ix<=min_val] + 2*neg_delta
 
     return ix
 
@@ -149,7 +149,7 @@ class FunkNN(nn.Module):
         self.c = c
 
         fcs = []
-        prev_unit = config.w_size * config.w_size * self.c #+ 2
+        prev_unit = config.w_size * config.w_size * self.c + 100
         # hidden_units = [10,10,10,10,9,9,9,9,8,8,8,7,7,7,6,6,6,5,5,5,4,4,4,0]
         hidden_units = [9,9,8,8,7,7,6,6,6,0]
         hidden_units = np.power(2, hidden_units)
@@ -184,11 +184,14 @@ class FunkNN(nn.Module):
         alpha = torch.ones(1)
         self.alpha = nn.Parameter(alpha.clone().detach(), requires_grad=True)
 
-        n = int(np.ceil((config.image_size+1) * np.sqrt(2)))
+        n = int(np.ceil((config.image_size//2+1) * np.sqrt(2)))
         projection_size_padded = max(64, int(2 ** np.ceil(np.log2(2 * n))))
         fourier_filter = _get_fourier_filter(projection_size_padded, config.filter_init)
         fourier_filter = torch.tensor(fourier_filter, dtype = torch.float32)
         self.fourier_filter = nn.Parameter(fourier_filter.clone().detach(), requires_grad=config.learnable_filter) 
+
+        th = torch.zeros(1)
+        self.th = nn.Parameter(th.clone().detach(), requires_grad=True)
 
     def grid_sample_customized(self, image, grid, mode = 'bilinear' , pad = 'circular', align_corners = True):
         '''Differentiable grid_sample:
@@ -364,7 +367,7 @@ class FunkNN(nn.Module):
         # print(coords.min(), coords.max())
         # coords = reflect_coords((coords + 0.5) * config.image_size , 0, config.image_size)
         # coords = coords/config.image_size - 0.5
-        coords = 2 * reflect_coords(coords , -0.5, 0.5)
+        coords = 2 * reflect_coords(coords , -0.5 + self.th, 0.5 - self.th)
         coords = coords/np.sqrt(2)
         # print(coords.min(), coords.max())
 
@@ -453,24 +456,28 @@ class FunkNN(nn.Module):
         filtered_sinogram = torch.fft.ifft(projection, dim=1)[:,:n].real
 
         # filtered_sinogram = F.interpolate(filtered_sinogram.unsqueeze(1),
-        #                              size = (int(config.image_size/(2*factor)) + 1,sinogram.shape[2]),
+        #                              size = (int(config.image_size/factor) + 1,sinogram.shape[2]),
         #                              align_corners=True, mode = 'bilinear')[:,0]
 
         # print(filtered_sinogram.shape)
         b , b_pixels , _ = coordinate.shape
 
         x = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
-        # mid_pix = torch.mean(x[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
+        mid_pix = torch.mean(x[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
 
         x = torch.flatten(x, 1)
-        # coordinate = coordinate.reshape(b*b_pixels, -1)
-        # x = torch.cat((coordinate, x), axis = 1)
+        coordinate = coordinate * 64
+        coordinate = coordinate - torch.floor(coordinate)
+        # print(coordinate)
+        coordinate = coordinate.reshape(b*b_pixels, -1).repeat(1,50)
+        # print(coordinate.shape)
+        x = torch.cat((coordinate, x), axis = 1)
 
         for i in range(len(self.MLP)-1):
             x = F.relu(self.MLP[i](x))
 
         x = self.MLP[-1](x)
-        # x = x + self.alpha * mid_pix # external skip connection to the centric pixel
+        x = x + self.alpha * mid_pix # external skip connection to the centric pixel
         x = x.reshape(b, b_pixels, -1)
         
         return x

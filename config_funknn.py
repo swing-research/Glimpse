@@ -2,11 +2,11 @@ import numpy as np
 
 epochs_funknn = 200 # number of epochs to train funknn network
 batch_size = 64
-gpu_num = 2 # GPU number
-exp_desc = 'test' # Add a small descriptor to the experiment
+gpu_num = 0 # GPU number
+exp_desc = 'th' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 c = 30 # Number of channels of the dataset
-train_funknn = False # Train or just reload to test
+train_funknn = True # Train or just reload to test
 restore_funknn = True
 ood_analysis = False # Evaluating the performance of model over out of distribution data (Lsun-bedroom)
 Bayesian = False
