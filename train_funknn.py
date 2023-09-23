@@ -115,30 +115,16 @@ if train_funknn:
             
             batch_size = image.shape[0]
             image = image.to(device)
-            image = image.reshape([-1, config.image_size+1, config.image_size+1, 1]).permute(0,3,1,2)
-            # factor = np.random.rand(1) + 1
-            # factor = 1
-            # image = F.interpolate(image,
-            #                       size = int((config.image_size+1)/factor) + 1,
-            #                       align_corners=True, mode = 'bilinear')
-            im_size = image.shape[2]
-            # print(image.shape)
-            image = image.reshape([batch_size, -1])
             sinogram = sinogram.to(device)
-            # print(sinogram.unsqueeze(1).shape)
-            # sinogram = F.interpolate(sinogram.unsqueeze(1),
-            #                          size = (int(sinogram.shape[1]/factor),sinogram.shape[2]),
-            #                          align_corners=True, mode = 'bilinear')[:,0]
-            # print(sinogram.shape)
             
             for i in range(num_batch_pixels):
 
-                coords = get_mgrid(im_size).reshape(-1, 2)
+                coords = get_mgrid(config.image_size+1).reshape(-1, 2)
                 coords = torch.unsqueeze(coords, dim = 0)
                 coords = coords.expand(batch_size , -1, -1).to(device)
                 
                 optimizer_funknn.zero_grad()
-                pixels = np.random.randint(low = 0, high = (im_size)**2, size = batch_pixels)
+                pixels = np.random.randint(low = 0, high = (config.image_size+1)**2, size = batch_pixels)
                 batch_coords = coords[:,pixels]
                 batch_image = image[:,pixels]
 
@@ -153,7 +139,7 @@ if train_funknn:
 
         if ep % plot_per_num_epoch == 0 or (ep + 1) == epochs_funknn:
 
-            scheduler_funknn.step()
+            # scheduler_funknn.step()
             t2 = default_timer()
             loss_funknn_epoch/= ntrain
             loss_funknn_plot[ep] = loss_funknn_epoch

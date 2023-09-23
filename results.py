@@ -40,8 +40,8 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
         file.write('Evaluation on {} set with {}dB noise:'.format(subset, noise_snr))
         file.write('\n')
 
-    if config.max_scale > 1 and subset == 'test':
-        images, sinogram, images_x2 = next(iter(data_loader))
+    if subset == 'test':
+        images, sinogram, images_x2, sinogram_x2 = next(iter(data_loader))
         images_x2 = images_x2.reshape(-1, 2*image_size+1, 2*image_size+1, 1)
 
         # GTx2:
@@ -55,9 +55,12 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
         
     else:
         images, sinogram = next(iter(data_loader))
-    images = images[:sample_number].to(device)
+    
 
+    images = images[:sample_number].to(device)
     sinogram = sinogram[:sample_number].to(device)
+    images_x2 = images_x2[:sample_number].to(device)
+    sinogram_x2 = sinogram_x2[:sample_number].to(device)
     images = images.reshape(-1, image_size+1, image_size+1, 1)
 
 
@@ -72,15 +75,16 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
     
 
     # FBP:
-    # cbp = model(0, sinogram, return_cbp = True)
-    # cbp_np = cbp.detach().cpu().numpy().mean(axis = 1) * np.pi/2
-
-    # cbp_write = cbp_np[:num_samples_write].reshape(
-    #     ngrid, ngrid,
-    #     config.image_size, config.image_size,1).swapaxes(1, 2).reshape(ngrid*config.image_size, -1, 1)
+    sinogram_np = sinogram.detach().cpu().numpy()[0]
+    fbp = iradon(sinogram_np, theta=config.theta, circle= False)
+    plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_fbp.png'),
+               fbp, cmap = cmap)
     
-    # plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_fbp.png'),
-    #            cbp_write[:,:,0], cmap = cmap)
+    sinogram_np_x2 = sinogram_x2.detach().cpu().numpy()[0]
+    fbp_x2 = iradon(sinogram_np_x2, theta=config.theta, circle= False)
+
+    plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_fbp2.png'),
+               fbp_x2, cmap = cmap)
 
 
     scales = [i for i in range(int(np.log2(2*max_scale)))]
@@ -101,6 +105,8 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
 
             plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_bicubic_{scales[i]}.png'),
                 recon_bicubic_write[:,:,0], cmap = cmap)
+            
+            sinogram = sinogram_x2
 
         # Recon:
         coords = get_mgrid(res+1)
@@ -119,14 +125,16 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
 
         if i == 0:
             error = np.abs(images_np - recon_np)
+            # error = np.abs(images_np, fbp[None,...])
         else:
             error = np.abs(images_x2_np - recon_np)
+            # error = np.abs(images_x2_np, fbp_x2[None,...])
         # plt.imshow(error[0], cmap = 'seismic')
         # plt.colorbar()
         # plt.savefig(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_error_{scales[i]}.png'))
         # plt.close()
         plt.imsave(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_error_{scales[i]}.png'),
-            error[3], cmap = 'seismic')
+            error[0], cmap = 'seismic')
 
         if subset == 'ood' and ep == -1:
             np.savez(os.path.join(image_path_reconstructions, f'{ep}_{subset}_{noise_snr}db_recon_{scales[i]}.npz'),
@@ -134,15 +142,14 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
         
         if i == 0:
             psnr_recon = PSNR(images_np, recon_np)
-            # psnr_cbp = PSNR(images_np, cbp_np)
-            psnr_cbp = 0
+            psnr_fbp = PSNR(images_np[0:1], fbp[None,...])
 
             print('PSNR_fbp_f{}: {:.1f} | PSNR_recon_f{}: {:.1f}'.format(scales[i],
-                psnr_cbp, scales[i], psnr_recon))
+                psnr_fbp, scales[i], psnr_recon))
 
             with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
                 file.write('PSNR_fbp_f{}: {:.1f} | PSNR_recon_f{}: {:.1f} | '.format(scales[i],
-                psnr_cbp, scales[i], psnr_recon))
+                psnr_fbp, scales[i], psnr_recon))
                 file.write('\n')
                 if subset == 'ood':
                     file.write('\n')
@@ -150,10 +157,11 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
             recon = torch.tensor(recon_np, dtype = torch.float32).unsqueeze(1)
 
         if i == 1:
+            psnr_fbp = PSNR(images_x2_np[0:1], fbp_x2[None,...])
             psnr_recon = PSNR(images_x2_np, recon_np)
             psnr_bicubic = PSNR(images_x2_np, recon_bicubic)
 
-            print('PSNR_bicubic_f{}: {:.1f} | PSNR_recon_f{}: {:.1f}'.format(scales[i],
+            print('PSNR_fbp_f{}: {:.1f} | PSNR_bicubic_f{}: {:.1f} | PSNR_recon_f{}: {:.1f}'.format(scales[i], psnr_fbp,scales[i],
                 psnr_bicubic, scales[i], psnr_recon))
 
             with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
@@ -162,10 +170,6 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
                 file.write('\n')
                 if subset == 'ood':
                     file.write('\n')
-
-
-
-
 
 
 def evaluator_Bayesian(ep, subset, data_loader, model, exp_path):

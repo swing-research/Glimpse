@@ -140,25 +140,32 @@ class CT_images(torch.utils.data.Dataset):
                                   antialias= True,
                                   align_corners= True)
         
-        image_64 = F.interpolate(image_128, size = config.image_size//2+1,
-                                  mode = 'bilinear',
-                                  antialias= True,
-                                  align_corners= True)
-        image_64_np = image_64.detach().cpu().numpy()[0,0]
-        sinogram = radon(image_64_np, theta=config.theta, circle= False)
+        image_128_np = image_128.detach().cpu().numpy()[0,0]
+        sinogram_128 = radon(image_128_np, theta=config.theta, circle= False)
 
         noise_sigma = 10**(-self.noise_snr/20.0)*np.sqrt(np.mean(np.sum(
-            np.square(np.reshape(sinogram, (1 , -1))) , -1)))
+            np.square(np.reshape(sinogram_128, (1 , -1))) , -1)))
         noise = np.random.normal(loc = 0,
                                  scale = noise_sigma,
-                                 size = np.shape(sinogram))/np.sqrt(np.prod(np.shape(sinogram)))
-        sinogram += noise
+                                 size = np.shape(sinogram_128))/np.sqrt(np.prod(np.shape(sinogram_128)))
+        sinogram_128 += noise
 
-        sinogram = torch.tensor(sinogram, dtype = torch.float32)
+        sinogram_128 = torch.tensor(sinogram_128, dtype = torch.float32)
         image_128 = image_128[0,0].reshape(-1, 1)
-        if config.max_scale > 1 and self.set == 'test':
-            
-            image_256 = image_256[0,0].reshape(-1, 1)
-            return image_128, sinogram, image_256
 
-        return image_128, sinogram
+        if self.set == 'test':
+
+            image_256_np = image_256.detach().cpu().numpy()[0,0]
+            sinogram_256 = radon(image_256_np, theta=config.theta, circle= False)
+
+            noise_sigma = 10**(-self.noise_snr/20.0)*np.sqrt(np.mean(np.sum(
+                np.square(np.reshape(sinogram_256, (1 , -1))) , -1)))
+            noise = np.random.normal(loc = 0,
+                                    scale = noise_sigma,
+                                    size = np.shape(sinogram_256))/np.sqrt(np.prod(np.shape(sinogram_256)))
+            sinogram_256 += noise
+            sinogram_256 = torch.tensor(sinogram_256, dtype = torch.float32)
+            image_256 = image_256[0,0].reshape(-1, 1)
+
+            return image_128, sinogram_128, image_256, sinogram_256
+        return image_128, sinogram_128
