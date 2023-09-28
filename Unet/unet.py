@@ -89,17 +89,20 @@ N_epochs = 200
 batch_size = 64
 image_size = 128
 num_angles = 30
-gpu_num = 3
-run_train = False
-exp_path = 'experiments_CT/base/'
+gpu_num = 2
+run_train = True
+exp_path = 'experiments/30db/'
 myloss = F.l1_loss
-train_path = '../datasets/CT_CBP/train_128_30_complete_sinog/'
-test_path = '../datasets/CT_CBP/test_128_30_complete_sinog/'
-ood_path = '../datasets/CT_CBP/outlier_128_30_complete_sinog/'
+# train_path = '../datasets/CT_CBP/train_128_30_complete_sinog/'
+# test_path = '../datasets/CT_CBP/test_128_30_complete_sinog/'
+# ood_path = '../datasets/CT_CBP/outlier_128_30_complete_sinog/'
+train_path = '../../../datasets/CT/original_data/train'
+test_path = '../../../datasets/CT/original_data/test'
+ood_path = '../../datasets/CT_brain/test_samples/images'
 unet_reload = True
-test_noise_snr = 200
-ood_noise_snr = 200
-train_noise_snr = 200
+test_noise_snr = 30
+ood_noise_snr = 30
+train_noise_snr = 30
 
 if os.path.exists(exp_path) == False:
     os.mkdir(exp_path)
@@ -118,8 +121,8 @@ print('---> Number of trainable parameters of supercnn: {}'.format(num_param))
 
 
 # Dataset:
-train_dataset = CT_FBP(train_path, noise_snr = train_noise_snr)
-test_dataset = CT_FBP(test_path, noise_snr = test_noise_snr)
+train_dataset = CT_images(train_path, noise_snr = train_noise_snr, unet = True)
+test_dataset = CT_images(test_path, noise_snr = test_noise_snr, unet = True)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=24, shuffle = True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, num_workers=24)
@@ -129,7 +132,7 @@ n_test = len(test_loader.dataset)
 
 n_ood = 0
 if ood_analysis:
-    ood_dataset = CT_FBP(ood_path, noise_snr = ood_noise_snr)
+    ood_dataset = CT_images(ood_path, noise_snr = ood_noise_snr, ood = True, unet = True)
     ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=batch_size, num_workers=24)
     n_ood= len(ood_loader.dataset)
 

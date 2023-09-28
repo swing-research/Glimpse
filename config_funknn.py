@@ -1,42 +1,36 @@
 import numpy as np
 
-epochs_funknn = 200 # number of epochs to train funknn network
+n_epochs = 200 # number of epochs to train funknn network
 batch_size = 64
 gpu_num = 0 # GPU number
-exp_desc = 'test' # Add a small descriptor to the experiment
+exp_desc = '30db_ramp' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
-c = 30 # Number of channels of the dataset
-train_funknn = True # Train or just reload to test
-restore_funknn = True
-ood_analysis = False # Evaluating the performance of model over out of distribution data (Lsun-bedroom)
-Bayesian = False
-kl_weight = 0.01
+n_angles = 30 # Number of channels of the dataset
+train = True # Train or just reload to test
+restore_model = True
+ood_analysis = True # Evaluating the performance of model over out of distribution data (Lsun-bedroom)
 num_training = -1
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
 learnable_filter = True
 missing_cone = 'complete'
 w_size = 9
 learning_rate = 1e-4
-train_noise_snr = 200
+train_noise_snr = 30
 if missing_cone == 'horizontal':
-    theta = np.linspace(30.0, 150.0, c, endpoint=False)
+    theta = np.linspace(30.0, 150.0, n_angles, endpoint=False)
 
 elif missing_cone == 'vertical':
-    theta = np.linspace(-60.0, 60.0, c, endpoint=False)
+    theta = np.linspace(-60.0, 60.0, n_angles, endpoint=False)
 
 else:
-    theta = np.linspace(0.0, 180.0, c, endpoint=False)
+    theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
 
 
 # Evaluation arguements
-max_scale = 2 # Maximum scale to generate in test time (2 or 4 or 8) (=<8 for celeba-hq and 2 for other datasets)
-recursive = True # Recursive image reconstructions (Use just for factor training mode)
 sample_number = 25 # Number of samples in evaluation
 cmap = 'gray' # 'rgb' or for RGB images and other matplotlib colormaps for grayscales
-derivatives_evaluation = False
-num_posteriors = 25
-test_noise_snr = 200
-ood_noise_snr = 200
+test_noise_snr = 30
+ood_noise_snr = 30
 
 
 # Datasets paths:
