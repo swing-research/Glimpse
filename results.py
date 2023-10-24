@@ -60,7 +60,7 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
 
 
 
-
+    model.eval()
     # Recon:
     coords = get_mgrid(config.image_size)
     coords = torch.unsqueeze(coords, dim = 0)

@@ -3,7 +3,7 @@ import numpy as np
 import os
 import sys
 sys.path.append('../')
-from datasets import *
+from data_loader import *
 from time import time
 from utils import *
 import matplotlib.pyplot as plt
@@ -26,7 +26,7 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
     psnr_fbp = 0
     cnt = 0
     cmap = 'gray'
-    image_size = 128
+    # image_size = 256
 
     for x_test,y_test in test_loader:
 
@@ -87,15 +87,12 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 ood_analysis = True
 N_epochs = 200
 batch_size = 64
-image_size = 128
+image_size = 256
 num_angles = 30
-gpu_num = 2
+gpu_num = 0
 run_train = True
-exp_path = 'experiments/30db/'
+exp_path = 'experiments/256/'
 myloss = F.l1_loss
-# train_path = '../datasets/CT_CBP/train_128_30_complete_sinog/'
-# test_path = '../datasets/CT_CBP/test_128_30_complete_sinog/'
-# ood_path = '../datasets/CT_CBP/outlier_128_30_complete_sinog/'
 train_path = '../../../datasets/CT/original_data/train'
 test_path = '../../../datasets/CT/original_data/test'
 ood_path = '../../datasets/CT_brain/test_samples/images'

@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 from funknn_model import Deep_local
 from utils import *
-from datasets import *
+from data_loader import *
 from results import evaluator_sinogram
 import config_funknn as config
 
@@ -98,6 +98,8 @@ if config.train:
             batch_size = image.shape[0]
             image = image.to(device)
             sinogram = sinogram.to(device)
+
+            model.train()
             
             for i in range(num_batch_pixels):
 

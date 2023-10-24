@@ -3,7 +3,7 @@ import numpy as np
 n_epochs = 200 # number of epochs to train funknn network
 batch_size = 64
 gpu_num = 0 # GPU number
-exp_desc = '30db_ramp' # Add a small descriptor to the experiment
+exp_desc = '0.5_receptive_field' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 n_angles = 30 # Number of channels of the dataset
 train = True # Train or just reload to test
@@ -16,6 +16,7 @@ missing_cone = 'complete'
 w_size = 9
 learning_rate = 1e-4
 train_noise_snr = 30
+activation = 'relu'
 if missing_cone == 'horizontal':
     theta = np.linspace(30.0, 150.0, n_angles, endpoint=False)
 
@@ -34,6 +35,7 @@ ood_noise_snr = 30
 
 
 # Datasets paths:
+
 
 train_path = '../../datasets/CT/original_data/train'
 test_path = '../../datasets/CT/original_data/test'

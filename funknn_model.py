@@ -34,10 +34,12 @@ class Deep_local(nn.Module):
         super(Deep_local, self).__init__()
 
         fcs = []
-        prev_unit = config.w_size * config.w_size * config.n_angles
+        prev_unit = config.w_size * config.w_size * config.n_angles #* 2
         # hidden_units = [10,10,10,10,9,9,9,9,8,8,8,7,7,7,6,6,6,5,5,5,4,4,4,0] # big
         # hidden_units = [9,9,8,8,7,7,6,6,6,0] # medium
-        hidden_units = [8,8,8,8,7,7,7,6,6,0] # small 
+        # hidden_units = [9,9,0] # shallow
+        hidden_units = [8,8,8,8,7,7,7,6,6,0] # base
+        # hidden_units = [7,8,8,8,7,7,7,6,6,0] # small
         # hidden_units = [7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,0] # small_long
         # hidden_units = [6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,0] # small_long_6
         # hidden_units = [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,0] # small_long_5
@@ -57,16 +59,50 @@ class Deep_local(nn.Module):
 
         # Skip connection weight
         alpha = torch.zeros(1)
-        self.alpha = nn.Parameter(alpha.clone().detach(), requires_grad=True)
+        # alpha = torch.ones(1)
+        self.alpha = nn.Parameter(alpha.clone().detach(), requires_grad=False)
 
         n = int(np.ceil((config.image_size) * np.sqrt(2)))
-        projection_size_padded = max(64, int(2 ** np.ceil(np.log2(2 * n))))
+        # projection_size_padded = max(64, int(2 ** np.ceil(np.log2(2 * n))))
+        # projection_size_padded = config.image_size + 10
+        projection_size_padded = 512
         fourier_filter = _get_fourier_filter(projection_size_padded, config.filter_init)
         fourier_filter = torch.tensor(fourier_filter, dtype = torch.float32)
         self.fourier_filter = nn.Parameter(fourier_filter.clone().detach(), requires_grad=config.learnable_filter) 
 
         s = (n-1)/2 * torch.ones(1)
         self.s = nn.Parameter(s.clone().detach(), requires_grad=True)
+
+        # z = (torch.arange(config.n_angles) - (config.n_angles-1)/2)/((config.n_angles-1)/2)
+        # self.z = nn.Parameter(z.clone().detach(), requires_grad=True)
+
+        # theta_rad = torch.deg2rad(torch.tensor(
+        #     config.theta[None,...,None, None], dtype = torch.float32))
+        # self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad=False)
+
+        z = (torch.arange(config.n_angles) - (config.n_angles-1)/2)/((config.n_angles-1)/2)
+        self.z = nn.Parameter(z.clone().detach(), requires_grad=True)
+
+        theta_rad = torch.deg2rad(torch.tensor(
+            config.theta[None,...,None, None], dtype = torch.float32))
+        self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad= True)
+
+
+        if config.activation == 'sin':
+            w0 = 30.0
+            w = []
+            for i in range(len(self.MLP)):
+                w_init = torch.ones(1) * w0
+                w.append(nn.Parameter(w_init.clone().detach(), requires_grad=True))
+                w_shape = self.MLP[i].weight.data.shape
+                b_shape = self.MLP[i].bias.data.shape
+                w_std = (1 / w_shape[1]) if i==0 else (np.sqrt(6.0 / w_shape[1]) / w0)
+                # w_std = (1 / w_shape[1])
+                self.MLP[i].weight.data = (2 * torch.rand(w_shape) - 1) * w_std
+                self.MLP[i].bias.data = (2 * torch.rand(b_shape) - 1) * w_std
+            self.w = nn.ParameterList(w)
+
+
 
         
     def grab(self, coords, sinogram):
@@ -83,9 +119,10 @@ class Deep_local(nn.Module):
         xpr = coords[:,:,:,0]
         ypr = coords[:,:,:,1]
         
-        theta_rad = torch.deg2rad(torch.tensor(
-            config.theta[None,...,None, None],
-            dtype = torch.float32)).to(coords.device)
+        # theta_rad = torch.deg2rad(torch.tensor(
+        #     config.theta[None,...,None, None],
+        #     dtype = torch.float32)).to(coords.device)
+        theta_rad = self.theta_rad
         
         ypr = ypr/self.s
         xpr = xpr/self.s
@@ -94,7 +131,9 @@ class Deep_local(nn.Module):
 
         t = ypr * torch.cos(theta_rad) - xpr * torch.sin(theta_rad)
         t = t[...,None]
-        z = (torch.arange(config.n_angles).to(coords.device) - (config.n_angles-1)/2)/((config.n_angles-1)/2)
+        # z = (torch.arange(config.n_angles).to(coords.device) - (config.n_angles-1)/2)/((config.n_angles-1)/2)
+        z = self.z
+
         z = z[...,None,None,None]
         z = z[None,...].repeat(t.shape[0],1,t.shape[2], t.shape[3],1)
         t = torch.concat((t, z), dim = -1)
@@ -146,21 +185,30 @@ class Deep_local(nn.Module):
         
         b , n, _ = sinogram.shape
         projection_size_padded = 512
-
         pad_width = (0,0,0, projection_size_padded - n)
         padded_sinogram = F.pad(sinogram, pad_width)
         projection = torch.fft.fft(padded_sinogram, dim=1) * self.fourier_filter
         filtered_sinogram = torch.fft.ifft(projection, dim=1)[:,:n].real
 
+        # filtered_sinogram_real = torch.fft.ifft(projection, dim=1)[:,:n].real
+        # filtered_sinogram_imag = torch.fft.ifft(projection, dim=1)[:,:n].imag
+
         b , b_pixels , _ = coordinate.shape
 
         x = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
+        # x_real = self.sinogram_sampler(filtered_sinogram_real , coordinate , output_size = config.w_size)
+        # x_imag = self.sinogram_sampler(filtered_sinogram_imag , coordinate , output_size = config.w_size)
+        # x = torch.concat([x_real, x_imag], axis = 1)
+        # print(x_real.shape, x_imag.shape, x.shape)
         mid_pix = torch.mean(x[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
 
         x = torch.flatten(x, 1)
 
         for i in range(len(self.MLP)-1):
-            x = F.relu(self.MLP[i](x))
+            if config.activation == 'relu':
+                x = F.relu(self.MLP[i](x))
+            elif config.activation == 'sin':
+                x = torch.sin(self.w[i] * self.MLP[i](x))
 
         x = self.MLP[-1](x)
         x = x + self.alpha * mid_pix # external skip connection to the centric pixel

@@ -58,3 +58,36 @@ class CT_images(torch.utils.data.Dataset):
 
         return image, sinogram
     
+
+
+
+
+class CT_odl(torch.utils.data.Dataset):
+
+    def __init__(self, directory):
+
+        self.directory = directory
+        self.name_list = os.listdir(self.directory)[:config.num_training]
+
+
+
+    def __len__(self):
+        return len(self.name_list)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        file_name = self.name_list[idx]
+        data = np.load(os.path.join(self.directory,file_name))
+        image = data['image']
+        sinogram = data['sinogram']
+        fbp = data['fbp']
+
+        image = torch.tensor(image, dtype = torch.float32)[None,...]
+        fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
+        sinogram = torch.tensor(sinogram, dtype = torch.float32)[None,...]
+
+        return image, sinogram, fbp
+
+    

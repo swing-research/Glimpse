@@ -39,6 +39,20 @@ def PSNR_rescale(x_true , x_pred):
 
 
 
+def SNR(x_true , x_pred):
+    '''Calculate SNR of a batch of true and their estimations'''
+
+    snr = 0
+    for i in range(x_true.shape[0]):
+        Noise = x_true[i] - x_pred[i]
+        Noise_power = np.sum(np.square(np.abs(Noise)))
+        Signal_power = np.sum(np.square(np.abs(x_true[i])))
+        snr += 10*np.log10(Signal_power/Noise_power)
+  
+    return snr/x_true.shape[0]
+
+
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
