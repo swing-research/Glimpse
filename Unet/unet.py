@@ -7,6 +7,7 @@ from data_loader import *
 from time import time
 from utils import *
 import matplotlib.pyplot as plt
+import torch.nn as nn
 
 def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 
@@ -24,6 +25,8 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 
     psnr_unet = 0
     psnr_fbp = 0
+    ssim_unet = 0
+    ssim_fbp = 0
     cnt = 0
     cmap = 'gray'
     # image_size = 256
@@ -41,8 +44,11 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
         x_test = x_test.cpu().detach().numpy()
         y_test = y_test.cpu().detach().numpy()
 
-        psnr_unet += PSNR(x_test, xhat_test)
-        psnr_fbp += PSNR(x_test, y_test)
+        psnr_unet += PSNR(x_test[:,0], xhat_test[:,0])
+        psnr_fbp += PSNR(x_test[:,0], y_test[:,0])
+        ssim_unet += SSIM(x_test[:,0], xhat_test[:,0])
+        ssim_fbp += SSIM(x_test[:,0], y_test[:,0])
+        
         cnt+=1
 
         # GT:
@@ -76,10 +82,17 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 
     psnr_unet /= cnt
     psnr_fbp /= cnt
+    ssim_unet /= cnt
+    ssim_fbp /= cnt
 
-    print('unet_PSNR : {:.1f}| fbp_PSNR : {:.1f}'.format(psnr_unet, psnr_fbp))
+    np.savez(os.path.join(exp_path, f'unet_{subset}.npz'),
+        images = images_np, fbp = y_np, unet = recon_np)
+
+    print('unet_PSNR : {:.1f}| fbp_PSNR : {:.1f} | unet_SSIM : {:.2f}| fbp_SSIM : {:.2f}'.format(psnr_unet, psnr_fbp,
+            ssim_unet, ssim_fbp))
     with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
-        file.write('unet_PSNR : {:.1f}| fbp_PSNR : {:.1f}'.format(psnr_unet, psnr_fbp))
+        file.write('unet_PSNR : {:.1f}| fbp_PSNR : {:.1f} | unet_SSIM : {:.2f}| fbp_SSIM : {:.2f}'.format(psnr_unet, psnr_fbp,
+            ssim_unet, ssim_fbp))
         file.write('\n')
 
 
@@ -87,15 +100,19 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 ood_analysis = True
 N_epochs = 200
 batch_size = 64
-image_size = 256
+image_size = 128
 num_angles = 30
-gpu_num = 0
+gpu_num = 2
 run_train = True
-exp_path = 'experiments/256/'
-myloss = F.l1_loss
-train_path = '../../../datasets/CT/original_data/train'
-test_path = '../../../datasets/CT/original_data/test'
-ood_path = '../../datasets/CT_brain/test_samples/images'
+exp_path = 'experiments/uncalibrated/'
+myloss = F.mse_loss
+# myloss = F.l1_loss
+# train_path = '../../../datasets/CT/original_data/train'
+# test_path = '../../../datasets/CT/original_data/test'
+# ood_path = '../../datasets/CT_brain/test_samples/images'
+train_path = '../datasets/128_30_complete_30_right/train'
+test_path = '../datasets/128_30_complete_30_right/test'
+ood_path = '../datasets/128_30_complete_30_right/outlier'
 unet_reload = True
 test_noise_snr = 30
 ood_noise_snr = 30
@@ -113,13 +130,15 @@ device = torch.device('cuda:' + str(gpu_num) if torch.cuda.is_available() else '
 model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
     in_channels=1, out_channels=1, init_features=32, pretrained=False).to(device)
 
+# model = nn.DataParallel(model)
+
 num_param = count_parameters(model)
 print('---> Number of trainable parameters of supercnn: {}'.format(num_param))
 
 
 # Dataset:
-train_dataset = CT_images(train_path, noise_snr = train_noise_snr, unet = True)
-test_dataset = CT_images(test_path, noise_snr = test_noise_snr, unet = True)
+train_dataset = CT_dataset(train_path, unet = True, train = True)
+test_dataset = CT_dataset(test_path, unet = True, train = False)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=24, shuffle = True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, num_workers=24)
@@ -129,7 +148,7 @@ n_test = len(test_loader.dataset)
 
 n_ood = 0
 if ood_analysis:
-    ood_dataset = CT_images(ood_path, noise_snr = ood_noise_snr, ood = True, unet = True)
+    ood_dataset = CT_dataset(ood_path, unet = True, train = False)
     ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=batch_size, num_workers=24)
     n_ood= len(ood_loader.dataset)
 
@@ -153,6 +172,7 @@ if run_train:
         start = time()
         loss_unet_epoch = 0
         for x,y in train_loader:
+
             x = x.to(device)
             y = y.to(device)
             

@@ -4,7 +4,20 @@ import torch.nn.functional as F
 from skimage.transform import radon, iradon
 from scipy import optimize
 from skimage.metrics import peak_signal_noise_ratio as psnr
+from skimage.metrics import structural_similarity as ssim
 import config_funknn as config
+
+
+def SSIM(x_true , x_pred):
+    s = 0
+    for i in range(np.shape(x_pred)[0]):
+        s += ssim(x_true[i],
+                  x_pred[i],
+                  data_range=x_true[i].max() - x_true[i].min(),
+                  multichannel=True)
+        
+    return s/np.shape(x_pred)[0]
+
 
 
 
@@ -35,7 +48,7 @@ def PSNR_rescale(x_true , x_pred):
         opt = optimize.minimize(lambda x: -func(x),x0=np.array([1,0]))
         snr += -opt.fun
         weights = opt.x
-    return snr/x_true.shape[0], weights
+    return snr/x_true.shape[0]#, weights
 
 
 

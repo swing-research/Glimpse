@@ -33,8 +33,8 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
 
     images, sinogram = next(iter(data_loader))
 
-    images = images[:config.sample_number].to(device)
-    sinogram = sinogram[:config.sample_number].to(device)
+    images = images.to(device)
+    sinogram = sinogram.to(device)
     images = images.reshape(-1, config.image_size, config.image_size, 1)
 
 
@@ -86,13 +86,18 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
     # Numerics
     psnr_recon = PSNR(images_np, recon_np)
     psnr_fbp = PSNR(images_np, fbp)
+    ssim_recon = SSIM(images_np, recon_np)
+    ssim_fbp = SSIM(images_np, fbp)
 
-    print('PSNR fbp: {:.1f} | PSNR Deep_local: {:.1f}'.format(
-        psnr_fbp, psnr_recon))
+    np.savez(os.path.join(exp_path, f'deep_local_{subset}.npz'),
+            images = images_np, fbp = fbp, deep_local = recon_np)
+
+    print('PSNR fbp: {:.1f} | PSNR Deep_local: {:.1f} | SSIM fbp: {:.2f} | SSIM Deep_local: {:.2f}'.format(
+        psnr_fbp, psnr_recon, ssim_fbp, ssim_recon))
 
     with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
-        file.write('PSNR fbp: {:.1f} | PSNR Deep_local: {:.1f}'.format(
-        psnr_fbp, psnr_recon))
+        file.write('PSNR fbp: {:.1f} | PSNR Deep_local: {:.1f} | SSIM fbp: {:.2f} | SSIM Deep_local: {:.2f}'.format(
+            psnr_fbp, psnr_recon, ssim_fbp, ssim_recon))
         file.write('\n')
         if subset == 'ood':
             file.write('\n')

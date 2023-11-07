@@ -32,8 +32,8 @@ if os.path.exists(exp_path) == False:
 
 step_size = 50
 gamma = 0.5
-# myloss = F.mse_loss
-myloss = F.l1_loss
+myloss = F.mse_loss
+# myloss = F.l1_loss
 num_batch_pixels = 3 # The number of iterations over each batch
 batch_pixels = 512 # Number of pixels to optimize in each iteration
 
@@ -46,8 +46,8 @@ print('---> experiment path: {}'.format(exp_path))
 print('---> image size: {}'.format(config.image_size))
 
 # Dataset:
-train_dataset = CT_images(config.train_path, noise_snr = config.train_noise_snr)
-test_dataset = CT_images(config.test_path, noise_snr = config.test_noise_snr)
+train_dataset = CT_dataset(config.train_path, train = True)
+test_dataset = CT_dataset(config.test_path, train = False)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=24, shuffle = True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
@@ -57,8 +57,8 @@ n_test = len(test_loader.dataset)
 
 n_ood = 0
 if config.ood_analysis:
-    ood_dataset = CT_images(config.ood_path, noise_snr = config.ood_noise_snr, ood = True)
-    ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=config.batch_size, num_workers=24)
+    ood_dataset = CT_dataset(config.ood_path, train = False)
+    ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
     n_ood= len(ood_loader.dataset)
 
 print('---> Number of training, test and ood samples: {}, {}, {}'.format(ntrain,n_test, n_ood))
@@ -74,6 +74,10 @@ print('---> Number of trainable parameters of funknn: {}'.format(num_param_funkn
 optimizer_funknn = Adam(model.parameters(), lr=config.learning_rate)
 scheduler_funknn = torch.optim.lr_scheduler.StepLR(optimizer_funknn, step_size=step_size, gamma=gamma)
 
+theta_rad = model.theta_rad
+theta_deg = np.rad2deg(theta_rad.detach().cpu().numpy())
+print(theta_deg)
+
 checkpoint_exp_path = os.path.join(exp_path, 'funknn.pt')
 if os.path.exists(checkpoint_exp_path) and config.restore_model:
     checkpoint_funknn = torch.load(checkpoint_exp_path)
@@ -81,6 +85,11 @@ if os.path.exists(checkpoint_exp_path) and config.restore_model:
     optimizer_funknn.load_state_dict(checkpoint_funknn['optimizer_state_dict'])
     print('funknn is restored...')
 
+
+theta_rad = model.theta_rad
+theta_deg = np.rad2deg(theta_rad.detach().cpu().numpy())
+print(theta_deg)
+# np.save(os.path.join(exp_path, 'sensors_locs.npy'), theta_deg)
 if config.train:
     print('Training...')
 
@@ -98,6 +107,7 @@ if config.train:
             batch_size = image.shape[0]
             image = image.to(device)
             sinogram = sinogram.to(device)
+            # fbp = fbp.to(device)
 
             model.train()
             

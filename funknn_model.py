@@ -34,15 +34,17 @@ class Deep_local(nn.Module):
         super(Deep_local, self).__init__()
 
         fcs = []
-        prev_unit = config.w_size * config.w_size * config.n_angles #* 2
-        # hidden_units = [10,10,10,10,9,9,9,9,8,8,8,7,7,7,6,6,6,5,5,5,4,4,4,0] # big
+        # prev_unit = config.w_size * config.w_size * (config.n_angles + 2*config.scale)
+        # prev_unit = config.w_size * config.w_size * (config.n_angles + 2*(config.scale-1))
+        if config.multiscale:
+            prev_unit = config.w_size * config.w_size * (config.n_angles + 2*(config.scale-1))
+        else:
+            prev_unit = config.w_size * config.w_size * config.n_angles
+        
         # hidden_units = [9,9,8,8,7,7,6,6,6,0] # medium
-        # hidden_units = [9,9,0] # shallow
+        # hidden_units = [10,10,10,9,9,9,8,8,0] # 512
+        # hidden_units = [9,9,9,9,8,8,0] # med_shallow
         hidden_units = [8,8,8,8,7,7,7,6,6,0] # base
-        # hidden_units = [7,8,8,8,7,7,7,6,6,0] # small
-        # hidden_units = [7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,0] # small_long
-        # hidden_units = [6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,0] # small_long_6
-        # hidden_units = [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,0] # small_long_5
         hidden_units = np.power(2, hidden_units)
 
         for i in range(len(hidden_units)):
@@ -57,6 +59,7 @@ class Deep_local(nn.Module):
         ws2 = torch.ones(1)
         self.ws2 = nn.Parameter(ws2.clone().detach(), requires_grad=True)
 
+
         # Skip connection weight
         alpha = torch.zeros(1)
         # alpha = torch.ones(1)
@@ -66,6 +69,7 @@ class Deep_local(nn.Module):
         # projection_size_padded = max(64, int(2 ** np.ceil(np.log2(2 * n))))
         # projection_size_padded = config.image_size + 10
         projection_size_padded = 512
+        # projection_size_padded = 1024
         fourier_filter = _get_fourier_filter(projection_size_padded, config.filter_init)
         fourier_filter = torch.tensor(fourier_filter, dtype = torch.float32)
         self.fourier_filter = nn.Parameter(fourier_filter.clone().detach(), requires_grad=config.learnable_filter) 
@@ -81,11 +85,11 @@ class Deep_local(nn.Module):
         # self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad=False)
 
         z = (torch.arange(config.n_angles) - (config.n_angles-1)/2)/((config.n_angles-1)/2)
-        self.z = nn.Parameter(z.clone().detach(), requires_grad=True)
+        self.z = nn.Parameter(z.clone().detach(), requires_grad= config.lsg)
 
         theta_rad = torch.deg2rad(torch.tensor(
             config.theta[None,...,None, None], dtype = torch.float32))
-        self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad= True)
+        self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad= config.lsg)
 
 
         if config.activation == 'sin':
@@ -182,27 +186,55 @@ class Deep_local(nn.Module):
     
     
     def forward(self, coordinate, sinogram):
+
+        # FBP cropper:
+        # x_fbp = self.cropper(fbp , coordinate , output_size = config.w_size_fbp)
+        # # mid_pix = x_fbp[:,:,4,4] # Centeric pixel
+        # x_fbp = torch.flatten(x_fbp, 1)
         
+        # Sinogram grabber
         b , n, _ = sinogram.shape
         projection_size_padded = 512
+        # projection_size_padded = 1024
         pad_width = (0,0,0, projection_size_padded - n)
         padded_sinogram = F.pad(sinogram, pad_width)
         projection = torch.fft.fft(padded_sinogram, dim=1) * self.fourier_filter
         filtered_sinogram = torch.fft.ifft(projection, dim=1)[:,:n].real
 
-        # filtered_sinogram_real = torch.fft.ifft(projection, dim=1)[:,:n].real
-        # filtered_sinogram_imag = torch.fft.ifft(projection, dim=1)[:,:n].imag
-
         b , b_pixels , _ = coordinate.shape
 
-        x = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
-        # x_real = self.sinogram_sampler(filtered_sinogram_real , coordinate , output_size = config.w_size)
-        # x_imag = self.sinogram_sampler(filtered_sinogram_imag , coordinate , output_size = config.w_size)
-        # x = torch.concat([x_real, x_imag], axis = 1)
-        # print(x_real.shape, x_imag.shape, x.shape)
-        mid_pix = torch.mean(x[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
+        x_sin = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
+        mid_pix = torch.mean(x_sin[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
+        x = torch.flatten(x_sin, 1)
 
-        x = torch.flatten(x, 1)
+        if config.multiscale:
+            # 1) low-scale features
+            x_sin_fft = torch.fft.rfft(x_sin, dim = 1)
+
+            scales = [2,4,8]
+            for s in scales:
+
+                x_sin_low = torch.fft.irfft(x_sin_fft[:,:s], dim = 1)
+                x_sin_low = torch.flatten(x_sin_low, 1)
+                x = torch.concat([x, x_sin_low], dim = 1)
+            # print(x_sin_low.shape, x_sin.shape)
+
+            # x_sin = torch.flatten(x_sin, 1)
+            # x_sin_low = torch.flatten(x_sin_low, 1)
+            # x = torch.concat([x_sin, x_sin_low], dim = 1)
+
+
+            # 2) Fourior features
+            # x_sin_fft = torch.fft.rfft(x_sin, dim = 1, norm = 'forward')
+            # # print(x_sin_fft.shape, x_sin_fft[0,:,0,0])
+            # x_sin_fft_real = x_sin_fft.real
+            # x_sin_fft_imag = x_sin_fft.imag
+
+            # x_sin = torch.flatten(x_sin, 1)
+            # x_sin_fft_real = torch.flatten(x_sin_fft_real[:,:config.scale], 1)
+            # x_sin_fft_imag = torch.flatten(x_sin_fft_imag[:,:config.scale], 1)
+
+            # x = torch.concat([x_sin, x_sin_fft_real, x_sin_fft_imag], dim = 1)
 
         for i in range(len(self.MLP)-1):
             if config.activation == 'relu':
@@ -214,6 +246,5 @@ class Deep_local(nn.Module):
         x = x + self.alpha * mid_pix # external skip connection to the centric pixel
         x = x.reshape(b, b_pixels, -1)
 
-        
         return x
 

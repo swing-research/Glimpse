@@ -9,10 +9,16 @@ import imageio
 
 class CT_images(torch.utils.data.Dataset):
 
-    def __init__(self, directory, noise_snr = 30, unet = False, ood = False):
+    def __init__(self, directory, noise_snr = 30, unet = False, ood = False, train=True):
 
         self.directory = directory
-        self.name_list = os.listdir(self.directory)[:config.num_training]
+        if train:
+            name_list = os.listdir(self.directory)[:config.num_training]
+            self.name_list = name_list * (30000//config.num_training)
+        else:
+            self.name_list = os.listdir(self.directory)
+
+
         self.noise_snr = noise_snr
         self.unet = unet
         self.ood = ood
@@ -48,6 +54,8 @@ class CT_images(torch.utils.data.Dataset):
                                  size = np.shape(sinogram))/np.sqrt(np.prod(np.shape(sinogram)))
         sinogram += noise
 
+        # fbp = iradon(sinogram, theta=config.theta, circle= False)
+        # fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
         if self.unet:
             fbp = iradon(sinogram, theta=config.theta, circle= False)
             fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
@@ -56,10 +64,72 @@ class CT_images(torch.utils.data.Dataset):
         sinogram = torch.tensor(sinogram, dtype = torch.float32)
         image = image[0,0].reshape(-1, 1)
 
-        return image, sinogram
+        return image, sinogram#, fbp
     
 
 
+class CT_dataset(torch.utils.data.Dataset):
+
+    def __init__(self, directory, unet = False, train=True):
+
+        self.directory = directory
+        # if train:
+        #     name_list = os.listdir(self.directory)[:config.num_training]
+        #     self.name_list = name_list * (30000//config.num_training)
+        # else:
+        #     self.name_list = os.listdir(self.directory)
+
+        self.name_list = sorted(os.listdir(self.directory))
+        self.unet = unet
+
+
+    def __len__(self):
+        return len(self.name_list)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        file_name = self.name_list[idx]
+        file = np.load(os.path.join(self.directory,file_name))
+        image = file['image']
+        image = torch.tensor(image, dtype = torch.float32)
+
+        if config.memory_analysis:
+            image = F.interpolate(image[None,None], size = config.image_size,
+                                mode = 'nearest')[0]
+
+        # print(image.shape)
+
+        if self.unet:
+
+            if config.uncalibrated:
+                sinogram = file['sinogram']
+                fbp = iradon(sinogram, theta=config.theta, circle= False)
+
+            else:
+                fbp = file['fbp']
+
+            fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
+            if config.memory_analysis:
+                fbp = F.interpolate(fbp[None,...], size = config.image_size,
+                                    mode = 'nearest')[0]
+
+            return image[None,...], fbp
+        
+        else:
+            sinogram = file['sinogram']
+            sinogram = torch.tensor(sinogram, dtype = torch.float32)
+            if config.memory_analysis:
+                n = int(np.ceil((config.image_size) * np.sqrt(2)))
+                sinogram = F.interpolate(sinogram[None,None], size = (n,config.n_angles),
+                                    mode = 'nearest')[0,0]
+
+            image = image.reshape(-1, 1)
+            return image, sinogram
+        
+    
+    
 
 
 class CT_odl(torch.utils.data.Dataset):
@@ -67,7 +137,7 @@ class CT_odl(torch.utils.data.Dataset):
     def __init__(self, directory):
 
         self.directory = directory
-        self.name_list = os.listdir(self.directory)[:config.num_training]
+        self.name_list = sorted(os.listdir(self.directory))#[:config.num_training]
 
 
 
@@ -88,6 +158,17 @@ class CT_odl(torch.utils.data.Dataset):
         fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
         sinogram = torch.tensor(sinogram, dtype = torch.float32)[None,...]
 
+        if config.memory_analysis:
+            image = F.interpolate(image[None,...], size = config.image_size,
+                                mode = 'nearest')[0]
+            
+            fbp = F.interpolate(fbp[None,...], size = config.image_size,
+                                mode = 'nearest')[0]
+            
+            n = int(np.ceil((config.image_size) * np.sqrt(2)))
+            sinogram = F.interpolate(sinogram[None,...], size = (config.n_angles,n),
+                                     mode = 'nearest')[0]
+            
         return image, sinogram, fbp
 
     
