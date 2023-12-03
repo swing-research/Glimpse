@@ -30,7 +30,7 @@ def CT_sinogram(image_size = 128, n_angles = 30,
     n_outlier = len(outlier_images_names)
     print(n_train, n_test, n_outlier)
 
-    data_folder = f'datasets/{image_size}_{n_angles}_{missing_cone}_{noise_snr}_3_dev/'
+    data_folder = f'datasets/{image_size}_{n_angles}_{missing_cone}_{noise_snr}/'
     if os.path.exists(data_folder) == False:
         os.mkdir(data_folder)
 
@@ -54,8 +54,7 @@ def CT_sinogram(image_size = 128, n_angles = 30,
         theta = np.linspace(-60.0, 60.0, n_angles, endpoint=False)
 
     else:
-        theta = np.linspace(0.0 + 3.0, 180.0 + 3.0, n_angles, endpoint=False)
-        # theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+        theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
 
     n_samples = n_test + n_train + n_outlier
     # n_samples = n_test + n_outlier
@@ -126,4 +125,4 @@ if __name__ == '__main__':
     CT_sinogram(image_size = 128,
                 missing_cone= 'complete',
                 n_angles= 30,
-                noise_snr= 40)
+                noise_snr= 20)

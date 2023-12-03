@@ -76,7 +76,12 @@ scheduler_funknn = torch.optim.lr_scheduler.StepLR(optimizer_funknn, step_size=s
 
 theta_rad = model.theta_rad
 theta_deg = np.rad2deg(theta_rad.detach().cpu().numpy())
+np.save(os.path.join(exp_path, 'init_sensors_locs.npy'), theta_deg)
 print(theta_deg)
+
+filter = model.fourier_filter
+filter = filter.detach().cpu().numpy()
+np.save(os.path.join(exp_path, 'init_filter.npy'), filter)
 
 checkpoint_exp_path = os.path.join(exp_path, 'funknn.pt')
 if os.path.exists(checkpoint_exp_path) and config.restore_model:
@@ -89,7 +94,13 @@ if os.path.exists(checkpoint_exp_path) and config.restore_model:
 theta_rad = model.theta_rad
 theta_deg = np.rad2deg(theta_rad.detach().cpu().numpy())
 print(theta_deg)
-# np.save(os.path.join(exp_path, 'sensors_locs.npy'), theta_deg)
+np.save(os.path.join(exp_path, 'sensors_locs.npy'), theta_deg)
+
+filter = model.fourier_filter
+filter = filter.detach().cpu().numpy()
+np.save(os.path.join(exp_path, 'learned_filter.npy'), filter)
+
+
 if config.train:
     print('Training...')
 
@@ -122,6 +133,9 @@ if config.train:
                 batch_coords = coords[:,pixels]
                 batch_image = image[:,pixels]
 
+                # shift = np.random.randint(low = 0, high = 4)
+                # mirror = True if np.random.rand(1) > 0.5 else False
+                # shift = 0
                 out = model(batch_coords, sinogram)
                 mse_loss = myloss(out.reshape(batch_size, -1) , batch_image.reshape(batch_size, -1) )
                 total_loss = mse_loss

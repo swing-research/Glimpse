@@ -102,3 +102,38 @@ def evaluator_sinogram(ep, subset, data_loader, model, exp_path):
         if subset == 'ood':
             file.write('\n')
 
+
+    # if (ep % 10 == 0 or (ep + 1) == config.n_epochs or ep ==-1):
+    #     psnr_shifts = []
+    #     mid_pixels = []
+    #     avg = 0
+    #     for shift in range(4):
+
+    #         for mirror in [True, False]:
+
+    #             coords = get_mgrid(config.image_size)
+    #             coords = torch.unsqueeze(coords, dim = 0)
+    #             coords = coords.expand(images.shape[0] , -1, -1).to(device)
+    #             recon_np = batch_sampling(sinogram, coords,1, model, shift, mirror)
+    #             recon_np = np.reshape(recon_np, [-1, config.image_size, config.image_size,1])[:,:,:,0]
+    #             avg = avg + recon_np
+    #             psnr_shifts.append(PSNR(images_np, recon_np))
+
+    #     avg = avg/8
+    #     psnr_avg = PSNR(images_np, avg)
+    #     print(psnr_avg)
+
+    #     plt.figure()
+    #     plt.plot(psnr_shifts)
+    #     plt.xlabel('Shift')
+    #     plt.ylabel('PSNR')
+    #     plt.savefig(os.path.join(exp_path, f'PSNR_{ep}_{subset}.png'))
+
+    #     avg = avg[:num_samples_write].reshape(ngrid, ngrid, config.image_size, config.image_size,
+    #                                           1).swapaxes(1,2).reshape(ngrid*config.image_size, -1, 1)
+    #     plt.imsave(os.path.join(exp_path, f'AVG_{ep}_{subset}.png'), avg[:,:,0], cmap = 'gray')
+
+
+
+
+

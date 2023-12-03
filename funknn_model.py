@@ -205,46 +205,61 @@ class Deep_local(nn.Module):
 
         x_sin = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
         mid_pix = torch.mean(x_sin[:,:, config.w_size//2, config.w_size//2], dim = 1, keepdim=True) * np.pi/2 # FBP recon
-        x = torch.flatten(x_sin, 1)
 
-        if config.multiscale:
-            # 1) low-scale features
-            x_sin_fft = torch.fft.rfft(x_sin, dim = 1)
+        x_avg = 0
+        for shift in range(config.n_shifts):
 
-            scales = [2,4,8]
-            for s in scales:
+            x_sin = torch.roll(x_sin, shifts = shift, dims = 1)
+            # x_sin = torch.rot90(x_sin, k = shift, dims = [2,3])
+            
+            # if mirror:
+            #     x_sin = torch.flip(x_sin, dims = [2])
 
-                x_sin_low = torch.fft.irfft(x_sin_fft[:,:s], dim = 1)
-                x_sin_low = torch.flatten(x_sin_low, 1)
-                x = torch.concat([x, x_sin_low], dim = 1)
-            # print(x_sin_low.shape, x_sin.shape)
-
-            # x_sin = torch.flatten(x_sin, 1)
-            # x_sin_low = torch.flatten(x_sin_low, 1)
-            # x = torch.concat([x_sin, x_sin_low], dim = 1)
+            x = torch.flatten(x_sin, 1)
 
 
-            # 2) Fourior features
-            # x_sin_fft = torch.fft.rfft(x_sin, dim = 1, norm = 'forward')
-            # # print(x_sin_fft.shape, x_sin_fft[0,:,0,0])
-            # x_sin_fft_real = x_sin_fft.real
-            # x_sin_fft_imag = x_sin_fft.imag
+            if config.multiscale:
+                # 1) low-scale features
+                x_sin_fft = torch.fft.rfft(x_sin, dim = 1)
 
-            # x_sin = torch.flatten(x_sin, 1)
-            # x_sin_fft_real = torch.flatten(x_sin_fft_real[:,:config.scale], 1)
-            # x_sin_fft_imag = torch.flatten(x_sin_fft_imag[:,:config.scale], 1)
+                scales = [2,4,8]
+                for s in scales:
 
-            # x = torch.concat([x_sin, x_sin_fft_real, x_sin_fft_imag], dim = 1)
+                    x_sin_low = torch.fft.irfft(x_sin_fft[:,:s], dim = 1)
+                    x_sin_low = torch.flatten(x_sin_low, 1)
+                    x = torch.concat([x, x_sin_low], dim = 1)
+                # print(x_sin_low.shape, x_sin.shape)
 
-        for i in range(len(self.MLP)-1):
-            if config.activation == 'relu':
-                x = F.relu(self.MLP[i](x))
-            elif config.activation == 'sin':
-                x = torch.sin(self.w[i] * self.MLP[i](x))
+                # x_sin = torch.flatten(x_sin, 1)
+                # x_sin_low = torch.flatten(x_sin_low, 1)
+                # x = torch.concat([x_sin, x_sin_low], dim = 1)
 
-        x = self.MLP[-1](x)
-        x = x + self.alpha * mid_pix # external skip connection to the centric pixel
-        x = x.reshape(b, b_pixels, -1)
 
-        return x
+                # 2) Fourior features
+                # x_sin_fft = torch.fft.rfft(x_sin, dim = 1, norm = 'forward')
+                # # print(x_sin_fft.shape, x_sin_fft[0,:,0,0])
+                # x_sin_fft_real = x_sin_fft.real
+                # x_sin_fft_imag = x_sin_fft.imag
+
+                # x_sin = torch.flatten(x_sin, 1)
+                # x_sin_fft_real = torch.flatten(x_sin_fft_real[:,:config.scale], 1)
+                # x_sin_fft_imag = torch.flatten(x_sin_fft_imag[:,:config.scale], 1)
+
+                # x = torch.concat([x_sin, x_sin_fft_real, x_sin_fft_imag], dim = 1)
+
+            for i in range(len(self.MLP)-1):
+                if config.activation == 'relu':
+                    x = F.relu(self.MLP[i](x))
+                elif config.activation == 'sin':
+                    x = torch.sin(self.w[i] * self.MLP[i](x))
+
+            x = self.MLP[-1](x)
+            x = x + self.alpha * mid_pix # external skip connection to the centric pixel
+            x = x.reshape(b, b_pixels, -1)
+
+            x_avg = x_avg + x
+        x_avg = x_avg/config.n_shifts
+        x_avg = x_avg * np.pi/2
+
+        return x_avg
 

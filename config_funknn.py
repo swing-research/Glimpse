@@ -1,9 +1,9 @@
 import numpy as np
 
-n_epochs = 200 # number of epochs to train funknn network
+n_epochs = 120 # number of epochs to train funknn network
 batch_size = 64
-gpu_num = 1 # GPU number
-exp_desc = 'base_no_interference' # Add a small descriptor to the experiment
+gpu_num = 2 # GPU number
+exp_desc = 'uncalibrated_small_random_shift_fixed' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 n_angles = 30 # Number of channels of the dataset
 train = True # Train or just reload to test
@@ -20,8 +20,9 @@ activation = 'relu'
 memory_analysis = False
 multiscale = False
 scale = 8
-uncalibrated = False
-lsg = True
+uncalibrated = True
+lsg = False
+n_shifts = 1
 
 if missing_cone == 'horizontal':
     theta = np.linspace(30.0, 150.0, n_angles, endpoint=False)
@@ -31,10 +32,19 @@ elif missing_cone == 'vertical':
 
 else:
     if uncalibrated:
+        # uncalibrated shifts:
         # theta = np.linspace(3.0, 183.0, n_angles, endpoint=False)
+        
+        # blind
         np.random.seed(2)
-        theta = np.random.rand(n_angles) * 180.0
-        theta = np.sort(theta)
+        # theta = np.random.rand(n_angles) * 180.0
+        # theta = np.sort(theta)
+
+        # uncalibrated random
+        shifts = np.random.randn(n_angles) * 2.0 #4.0
+        theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+        theta = theta + shifts
+
     else:
         theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
     
@@ -49,6 +59,10 @@ ood_noise_snr = 30
 
 # Datasets paths:
 
+# train_path = 'datasets/128_30_complete_40/train'
+# test_path = 'datasets/128_30_complete_40/test'
+# ood_path = 'datasets/128_30_complete_40/outlier'
+
 train_path = 'datasets/128_30_complete_30_right/train'
 test_path = 'datasets/128_30_complete_30_right/test'
 ood_path = 'datasets/128_30_complete_30_right/outlier'
@@ -60,9 +74,4 @@ ood_path = 'datasets/128_30_complete_30_right/outlier'
 # train_path = '../../datasets/CT/original_data/train'
 # test_path = '../../datasets/CT/original_data/test'
 # ood_path = '../datasets/CT_brain/test_samples/images'
-
-
-
-
-
 
