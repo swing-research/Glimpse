@@ -15,11 +15,9 @@ This repository is the official Pytorch implementation of "GLIMPSE: Generalized 
 - numpy
 - scipy
 - matplotlib
-- odl
 - imageio
 - torch==1.12.1
 - torchvision=0.13.1
-- astra-toolbox
 
 ## Installation
 
@@ -31,9 +29,9 @@ conda env create -f environment.yml
 
 ## Experiments
 ### Train
-All arguments for training are explained in config_funknn.py. After specifying your arguments, you can run the following command to train the model:
+All arguments for training are explained in config.py. After specifying your arguments, you can run the following command to train the model:
 ```sh
-python3 train_funknn.py 
+python3 train.py 
 ```
 
 
