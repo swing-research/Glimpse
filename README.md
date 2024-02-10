@@ -5,6 +5,10 @@
 
 This repository is the official Pytorch implementation of "GLIMPSE: Generalized Local Imaging with MLPs".
 
+<p float="center">
+<img src="figures/glimpse.png" width="1000">
+</p>
+
 
 ## Requirements
 (This code is tested with PyTorch 1.12.1, Python 3.8.3, CUDA 11.6 and cuDNN 7.)
