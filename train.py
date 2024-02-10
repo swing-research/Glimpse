@@ -40,8 +40,13 @@ print('---> experiment path: {}'.format(exp_path))
 print('---> image size: {}'.format(config.image_size))
 
 # Dataset:
-train_dataset = CT_dataset(config.train_path)
-test_dataset = CT_dataset(config.test_path)
+
+train_dataset = CT_images(config.train_path, image_size = config.image_size,
+                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
+                          theta_init = config.theta_init, subset = 'train')
+test_dataset = CT_images(config.test_path, image_size = config.image_size,
+                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
+                          theta_init = config.theta_init, subset = 'test')
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=24, shuffle = True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
@@ -51,7 +56,10 @@ n_test = len(test_loader.dataset)
 
 n_ood = 0
 if config.ood_analysis:
-    ood_dataset = CT_dataset(config.ood_path)
+    ood_dataset = CT_images(config.ood_path, image_size = config.image_size,
+                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
+                          theta_init = config.theta_init, subset = 'ood')
+    
     ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
     n_ood= len(ood_loader.dataset)
 

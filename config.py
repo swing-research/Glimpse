@@ -6,6 +6,7 @@ gpu_num = 0 # GPU number
 exp_desc = 'default' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 n_angles = 30 # Number of channels of the dataset
+noise_snr = 30
 train = True # Train or just reload to test
 restore_model = True
 ood_analysis = True # Evaluating the performance of model over out of distribution data (Lsun-bedroom)
@@ -18,11 +19,12 @@ uncalibrated_type = 'No' # No: calibrated, random: randomly shifted projections
 lsg = True  # Learnable sensore geomtery
 sample_number = 25 # Number of samples in used in visualization
 cmap = 'gray' # 'rgb' or for RGB images and other matplotlib colormaps for grayscales
+theta_actual = np.linspace(0.0, 180.0, n_angles, endpoint=False)
 
 
 np.random.seed(2)
 if uncalibrated_type == 'No':
-    theta_init = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+    theta_init = theta_actual
 
 elif uncalibrated_type == 'random':
     # uncalibrated random
@@ -46,15 +48,15 @@ elif uncalibrated_type == 'blind':
 # test_path = 'datasets/128_30_complete_40/test'
 # ood_path = 'datasets/128_30_complete_40/outlier'
 
-train_path = 'datasets/128_30_complete_30_right/train'
-test_path = 'datasets/128_30_complete_30_right/test'
-ood_path = 'datasets/128_30_complete_30_right/outlier'
+# train_path = 'datasets/128_30_complete_30_right/train'
+# test_path = 'datasets/128_30_complete_30_right/test'
+# ood_path = 'datasets/128_30_complete_30_right/outlier'
 
 # train_path = 'datasets/512_30_complete_40_right/train'
 # test_path = 'datasets/512_30_complete_40_right/test'
 # ood_path = 'datasets/512_30_complete_40_right/outlier'
 
-# train_path = '../../datasets/CT/original_data/train'
-# test_path = '../../datasets/CT/original_data/test'
-# ood_path = '../datasets/CT_brain/test_samples/images'
+train_path = '../../datasets/CT/original_data/train'
+test_path = '../../datasets/CT/original_data/test'
+ood_path = '../datasets/CT_brain/test_samples/images'
 

@@ -60,11 +60,11 @@ def get_mgrid(sidelen):
 
 
 
-def fbp_batch(sinograms):
+def fbp_batch(sinograms, theta):
 
     fbps = []
     for i in range(sinograms.shape[0]):
-        fbps.append(iradon(sinograms[i], theta=config.theta_init, circle = False))
+        fbps.append(iradon(sinograms[i], theta = theta, circle = False))
 
     fbps = np.array(fbps)
     return fbps

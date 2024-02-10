@@ -45,7 +45,7 @@ def evaluator(ep, subset, data_loader, model, exp_path):
 
     # FBP:
     sinogram_np = sinogram.detach().cpu().numpy()
-    fbp = fbp_batch(sinogram_np)
+    fbp = fbp_batch(sinogram_np, theta = config.theta_init)
     fbp_write = fbp[:num_samples_write].reshape(
         ngrid, ngrid,
         config.image_size, config.image_size,1).swapaxes(1, 2).reshape(ngrid*config.image_size, -1, 1)

@@ -8,6 +8,7 @@ from time import time
 from utils import *
 import matplotlib.pyplot as plt
 import torch.nn as nn
+import torch.nn.functional as F
 
 def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 
@@ -29,7 +30,6 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
     ssim_fbp = 0
     cnt = 0
     cmap = 'gray'
-    # image_size = 256
 
     for x_test,y_test in test_loader:
 
