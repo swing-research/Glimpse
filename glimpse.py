@@ -2,7 +2,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import numpy as np
-import config
 from skimage.transform.radon_transform import _get_fourier_filter
 from utils import *
 
@@ -22,12 +21,20 @@ def reflect_coords(ix, min_val, max_val):
 
 class glimpse(nn.Module):
 
-    def __init__(self):
+    def __init__(self, image_size, w_size, theta_init, lsg,
+                 learnable_filter, filter_init):
         super(glimpse, self).__init__()
+
+        self.image_size = image_size
+        self.w_size = w_size
+        self.lsg = lsg
+        self.learnable_filter = learnable_filter
+        self.filter_init = filter_init
+        self.n_angles = len(theta_init)
 
         fcs = []
         
-        prev_unit = config.w_size * config.w_size * config.n_angles
+        prev_unit = self.w_size * self.w_size * self.n_angles
         hidden_units = [8,8,8,8,7,7,7,6,6,0] # base
         hidden_units = np.power(2, hidden_units)
 
@@ -44,22 +51,22 @@ class glimpse(nn.Module):
         self.ws2 = nn.Parameter(ws2.clone().detach(), requires_grad=True)
 
 
-        n = int(np.ceil((config.image_size) * np.sqrt(2)))
+        n = int(np.ceil((self.image_size) * np.sqrt(2)))
         projection_size_padded = 512
         # projection_size_padded = 1024
-        fourier_filter = _get_fourier_filter(projection_size_padded, config.filter_init)
+        fourier_filter = _get_fourier_filter(projection_size_padded, self.filter_init)
         fourier_filter = torch.tensor(fourier_filter, dtype = torch.float32)
-        self.fourier_filter = nn.Parameter(fourier_filter.clone().detach(), requires_grad=config.learnable_filter) 
+        self.fourier_filter = nn.Parameter(fourier_filter.clone().detach(), requires_grad=self.learnable_filter) 
 
         s = (n-1)/2 * torch.ones(1)
         self.s = nn.Parameter(s.clone().detach(), requires_grad=True)
 
-        z = (torch.arange(config.n_angles) - (config.n_angles-1)/2)/((config.n_angles-1)/2)
-        self.z = nn.Parameter(z.clone().detach(), requires_grad= config.lsg)
+        z = (torch.arange(self.n_angles) - (self.n_angles-1)/2)/((self.n_angles-1)/2)
+        self.z = nn.Parameter(z.clone().detach(), requires_grad= self.lsg)
 
         theta_rad = torch.deg2rad(torch.tensor(
-            config.theta[None,...,None, None], dtype = torch.float32))
-        self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad= config.lsg)
+            theta_init[None,...,None, None], dtype = torch.float32))
+        self.theta_rad = nn.Parameter(theta_rad.clone().detach(), requires_grad= self.lsg)
 
         
     def extract_sin(self, coords, sinogram):
@@ -80,8 +87,8 @@ class glimpse(nn.Module):
         
         ypr = ypr/self.s
         xpr = xpr/self.s
-        xpr = xpr.unsqueeze(1).repeat(1,config.n_angles,1,1)
-        ypr = ypr.unsqueeze(1).repeat(1,config.n_angles,1,1)
+        xpr = xpr.unsqueeze(1).repeat(1,self.n_angles,1,1)
+        ypr = ypr.unsqueeze(1).repeat(1,self.n_angles,1,1)
 
         t = ypr * torch.cos(theta_rad) - xpr * torch.sin(theta_rad)
         t = t[...,None]
@@ -90,9 +97,9 @@ class glimpse(nn.Module):
         z = z[...,None,None,None]
         z = z[None,...].repeat(t.shape[0],1,t.shape[2], t.shape[3],1)
         t = torch.concat((t, z), dim = -1)
-        t = t.reshape(b, config.n_angles * t.shape[2], t.shape[3], 2)
+        t = t.reshape(b, self.n_angles * t.shape[2], t.shape[3], 2)
         cbp = F.grid_sample(col, t, align_corners= True, mode = 'bilinear')
-        cbp = cbp.reshape(b, config.n_angles, t.shape[2])
+        cbp = cbp.reshape(b, self.n_angles, t.shape[2])
         return cbp
 
         
@@ -110,15 +117,15 @@ class glimpse(nn.Module):
         x_p_x = d_coordinate[:,:,1]
         y_m_y = crop_size/2
         y_p_y = d_coordinate[:,:,0]
-        theta = torch.zeros(b, b_pixels, 2,3).to(sinogram.device)
-        theta[:,:,0,0] = x_m_x * self.ws1
-        theta[:,:,0,2] = x_p_x
-        theta[:,:,1,1] = y_m_y * self.ws2
-        theta[:,:,1,2] = y_p_y
+        affine_mat = torch.zeros(b, b_pixels, 2,3).to(sinogram.device)
+        affine_mat[:,:,0,0] = x_m_x * self.ws1
+        affine_mat[:,:,0,2] = x_p_x
+        affine_mat[:,:,1,1] = y_m_y * self.ws2
+        affine_mat[:,:,1,2] = y_p_y
 
-        theta = theta.reshape(b*b_pixels , 2 , 3)
+        affine_mat = affine_mat.reshape(b*b_pixels , 2 , 3)
 
-        f = F.affine_grid(theta, size=(b * b_pixels, config.n_angles, output_size, output_size), align_corners=True)
+        f = F.affine_grid(affine_mat, size=(b * b_pixels, self.n_angles, output_size, output_size), align_corners=True)
         f = f.reshape(b, b_pixels , output_size, output_size,2)
         f = f.reshape(b, b_pixels * output_size, output_size,2).permute(0,3,1,2)
         f = f.reshape(b, 2, b_pixels * output_size * output_size).permute(0,2,1).flip(dims=[2])
@@ -126,8 +133,8 @@ class glimpse(nn.Module):
         sinogram_samples = sinogram_samples.reshape(b, -1, b_pixels * output_size, output_size)
 
         sinogram_samples = sinogram_samples.permute(0,2,3,1)
-        sinogram_samples = sinogram_samples.reshape(b, b_pixels , output_size, output_size,config.n_angles)
-        sinogram_samples = sinogram_samples.reshape(b* b_pixels , output_size, output_size,config.n_angles)
+        sinogram_samples = sinogram_samples.reshape(b, b_pixels , output_size, output_size,self.n_angles)
+        sinogram_samples = sinogram_samples.reshape(b* b_pixels , output_size, output_size,self.n_angles)
         sinogram_samples = sinogram_samples.permute(0,3,1,2)
 
         return sinogram_samples
@@ -146,7 +153,7 @@ class glimpse(nn.Module):
 
         b , b_pixels , _ = coordinate.shape
 
-        x_sin = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = config.w_size)
+        x_sin = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = self.w_size)
 
         x = torch.flatten(x_sin, 1)
         for i in range(len(self.MLP)-1):

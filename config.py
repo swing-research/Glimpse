@@ -7,7 +7,7 @@ exp_desc = 'default' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 n_angles = 30 # Number of channels of the dataset
 train = True # Train or just reload to test
-restore_model = False
+restore_model = True
 ood_analysis = True # Evaluating the performance of model over out of distribution data (Lsun-bedroom)
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
 learnable_filter = True # Learnable filter applied to sinogram
@@ -22,22 +22,22 @@ cmap = 'gray' # 'rgb' or for RGB images and other matplotlib colormaps for grays
 
 np.random.seed(2)
 if uncalibrated_type == 'No':
-    theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+    theta_init = np.linspace(0.0, 180.0, n_angles, endpoint=False)
 
 elif uncalibrated_type == 'random':
     # uncalibrated random
     shifts = np.random.randn(n_angles) * 2.0
-    theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
-    theta = theta + shifts
+    theta_init = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+    theta_init = theta_init + shifts
 
 elif uncalibrated_type == 'fixed':
     # uncalibrated shifts:
-    theta = np.linspace(3.0, 183.0, n_angles, endpoint=False)
+    theta_init = np.linspace(3.0, 183.0, n_angles, endpoint=False)
 
 elif uncalibrated_type == 'blind':
     # blind
-    theta = np.random.rand(n_angles) * 180.0
-    theta = np.sort(theta)
+    theta_init = np.random.rand(n_angles) * 180.0
+    theta_init = np.sort(theta_init)
 
 
 # Datasets paths:

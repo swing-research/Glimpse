@@ -60,21 +60,16 @@ print('---> Number of training, test and ood samples: {}, {}, {}'.format(ntrain,
 # Loading model
 plot_per_num_epoch = 1 if ntrain > 10000 else 30000//ntrain
 
-model = glimpse().to(device)
+model = glimpse(image_size = config.image_size, w_size = config.w_size,
+                theta_init = config.theta_init, lsg = config.lsg,
+                 learnable_filter = config.learnable_filter,
+                 filter_init = config.filter_init).to(device)
 # model = torch.nn.DataParallel(model) # Using multiple GPUs
 num_param = count_parameters(model)
 print('---> Number of trainable parameters: {}'.format(num_param))
 
 optimizer = Adam(model.parameters(), lr=config.learning_rate)
 
-# theta_rad = model.theta_rad
-# theta_deg = np.rad2deg(theta_rad.detach().cpu().numpy())
-# np.save(os.path.join(exp_path, 'init_sensors_locs.npy'), theta_deg)
-# print(theta_deg)
-
-# filter = model.fourier_filter
-# filter = filter.detach().cpu().numpy()
-# np.save(os.path.join(exp_path, 'init_filter.npy'), filter)
 
 checkpoint_exp_path = os.path.join(exp_path, 'glimpse.pt')
 if os.path.exists(checkpoint_exp_path) and config.restore_model:
@@ -82,16 +77,6 @@ if os.path.exists(checkpoint_exp_path) and config.restore_model:
     model.load_state_dict(checkpoint_glimpse['model_state_dict'])
     optimizer.load_state_dict(checkpoint_glimpse['optimizer_state_dict'])
     print('glimpse is restored...')
-
-
-# theta_rad = model.theta_rad
-# theta_deg = np.rad2deg(theta_rad.detach().cpu().numpy())
-# print(theta_deg)
-# np.save(os.path.join(exp_path, 'sensors_locs.npy'), theta_deg)
-
-# filter = model.fourier_filter
-# filter = filter.detach().cpu().numpy()
-# np.save(os.path.join(exp_path, 'learned_filter.npy'), filter)
 
 
 if config.train:

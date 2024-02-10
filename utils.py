@@ -64,7 +64,7 @@ def fbp_batch(sinograms):
 
     fbps = []
     for i in range(sinograms.shape[0]):
-        fbps.append(iradon(sinograms[i], theta=config.theta, circle = False))
+        fbps.append(iradon(sinograms[i], theta=config.theta_init, circle = False))
 
     fbps = np.array(fbps)
     return fbps
