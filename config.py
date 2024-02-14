@@ -2,14 +2,14 @@ import numpy as np
 
 n_epochs = 200 # number of epochs to train glimpse network
 batch_size = 64
-gpu_num = 0 # GPU number
-exp_desc = 'default' # Add a small descriptor to the experiment
+gpu_num = 3 # GPU number
+exp_desc = 'default_demo' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 n_angles = 30 # Number of channels of the dataset
 noise_snr = 30
 train = True # Train or just reload to test
 restore_model = True
-ood_analysis = True # Evaluating the performance of model over out of distribution data (Lsun-bedroom)
+ood_analysis = True # Performance assesment on out-of-distribution (OOD) data (brain images)
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
 learnable_filter = True # Learnable filter applied to sinogram
 w_size = 9

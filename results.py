@@ -99,3 +99,63 @@ def evaluator(ep, subset, data_loader, model, exp_path):
 
 
 
+
+def evaluator_demo(data_loader, model, image_size, theta_init, cmap):
+
+    device = model.ws1.device
+    num_samples_write = 1
+    ngrid = int(np.sqrt(num_samples_write))
+    num_samples_write = int(ngrid **2)
+
+    images, sinogram = next(iter(data_loader))
+    images = images.to(device)
+    sinogram = sinogram.to(device)
+    images = images.reshape(-1, image_size, image_size, 1)
+
+
+    # GT:
+    images_np = images.detach().cpu().numpy()[:,:,:,0]
+    image_write = images_np[:num_samples_write].reshape(
+        ngrid, ngrid,
+        image_size, image_size,1).swapaxes(1, 2).reshape(ngrid*image_size, -1, 1)
+
+
+    # FBP:
+    sinogram_np = sinogram.detach().cpu().numpy()
+    fbp = fbp_batch(sinogram_np, theta = theta_init)
+    fbp_write = fbp[:num_samples_write].reshape(
+        ngrid, ngrid,
+        image_size, image_size,1).swapaxes(1, 2).reshape(ngrid*image_size, -1, 1)
+
+
+    # Glimpse:
+    with torch.no_grad():
+        coords = get_mgrid(image_size)
+        coords = torch.unsqueeze(coords, dim = 0)
+        coords = coords.expand(images.shape[0] , -1, -1).to(device)
+        recon_np = batch_sampling(sinogram, coords,1, model)
+
+    recon_np = np.reshape(recon_np, [-1, image_size, image_size,1])[:,:,:,0]
+    recon_write = recon_np[:num_samples_write].reshape(
+        ngrid, ngrid, image_size, image_size, 1).swapaxes(1, 2).reshape(ngrid*image_size, -1, 1)
+
+
+
+    plt.figure(figsize=(10,5))
+    plt.subplot(1,3,1); plt.imshow(fbp_write[:,:,0], cmap = cmap); plt.title('FBP')
+    plt.subplot(1,3,2); plt.imshow(recon_write[:,:,0], cmap = cmap); plt.title('Glimpse')
+    plt.subplot(1,3,3); plt.imshow(image_write[:,:,0], cmap = cmap); plt.title('GT')
+    plt.show()
+
+    # Numerics
+    psnr_recon = PSNR(images_np, recon_np)
+    psnr_fbp = PSNR(images_np, fbp)
+    ssim_recon = SSIM(images_np, recon_np)
+    ssim_fbp = SSIM(images_np, fbp)
+
+    print('PSNR fbp: {:.1f} | PSNR glimpse: {:.1f} | SSIM fbp: {:.2f} | SSIM glimpse: {:.2f}'.format(
+        psnr_fbp, psnr_recon, ssim_fbp, ssim_recon))
+
+
+
+

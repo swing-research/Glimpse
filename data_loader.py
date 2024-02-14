@@ -95,7 +95,7 @@ class CT_images(torch.utils.data.Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         
-        torch.manual_seed(idx + len(self.name_list))
+        np.random.seed(idx + len(self.name_list))
 
         file_name = self.name_list[idx]
         if self.subset == 'ood':
