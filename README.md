@@ -10,7 +10,7 @@ This repository is the official Pytorch implementation of "GLIMPSE: Generalized 
 
 
 <p float="center">
-<img src="figures/glimpse.png" width="1000">
+<img src="figures/glimpse.jpg" width="1000">
 </p>
 
 
