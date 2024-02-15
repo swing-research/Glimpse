@@ -2,8 +2,10 @@
 
 [![Paper](https://img.shields.io/badge/arxiv-report-red)](https://arxiv.org/abs/2401.00816)
 [![PWC](https://img.shields.io/badge/PWC-report-blue)](https://paperswithcode.com/paper/glimpse-generalized-local-imaging-with-mlps)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1f_YvD9WwKHN1NojIOC-HHGXAT4VgQHkz?usp=sharing)
 
-This repository is the official Pytorch implementation of "GLIMPSE: Generalized Local Imaging with MLPs".
+This repository is the official Pytorch implementation of "GLIMPSE: Generalized Local Imaging with MLPs". The [Colab demo](https://colab.research.google.com/drive/1f_YvD9WwKHN1NojIOC-HHGXAT4VgQHkz?usp=sharing) is also available.
+
 
 <p float="center">
 <img src="figures/glimpse.png" width="1000">
