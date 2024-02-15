@@ -73,7 +73,7 @@ class glimpse(nn.Module):
 
         b = coords.shape[0]
         n = sinogram.shape[1]
-        h = np.int(np.floor(n/np.sqrt(2)))
+        h = np.int32(np.floor(n/np.sqrt(2)))
 
         coords = reflect_coords((coords + 0.5) * (h-1) , -0.5, h-1 + 0.5)
         coords = coords/(h-1) - 0.5
@@ -109,7 +109,7 @@ class glimpse(nn.Module):
 
         d_coordinate = coordinate * 2
         b , n , _ = sinogram.shape
-        h = np.int(np.floor(n/np.sqrt(2)))
+        h = np.int32(np.floor(n/np.sqrt(2)))
 
         b_pixels = coordinate.shape[1]
         crop_size = 2 * (output_size-1)/(h-1)
