@@ -31,7 +31,7 @@ conda env create -f environment.yml
 ```
 
 ## Dataset
-All datasets have been uploaded to SwitchDrive. You can access the complete [LoDoPaB-CT](https://www.nature.com/articles/s41597-021-00893-z) by downloading it from [here](https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC). Additionally, we have made available a smaller subset of the LoDoPaB-CT dataset, comprising approximately 1000 [training](https://drive.switch.ch/index.php/s/qMlALcE7AZzUPBh) and 100 [test](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) samples. Moreover, to evaluate model generalization, we have included out-of-distribution (OOD) [brain images](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) consisting of 18 samples. These datasets can be downloaded using the following commands:
+All datasets have been uploaded to SwitchDrive. You can access the complete [LoDoPaB-CT](https://www.nature.com/articles/s41597-021-00893-z) by downloading it from [here](https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC). Additionally, we have made available a smaller subset of the LoDoPaB-CT dataset, comprising approximately 1000 [training](https://drive.switch.ch/index.php/s/qMlALcE7AZzUPBh) and 100 [test](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) samples. Moreover, to evaluate model generalization, we have included out-of-distribution (OOD) [brain images](https://drive.switch.ch/index.php/s/BQ8Yb8ofjutsEjV) consisting of 18 samples. These datasets can be downloaded using the following commands:
 
 Complete LoDoPaB-CT:
 ```sh
@@ -50,7 +50,7 @@ curl -O -J https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W/download
 
 Out-of-didstribution brain images:
 ```sh
-curl -O -J https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W/download
+curl -O -J https://drive.switch.ch/index.php/s/BQ8Yb8ofjutsEjV/download
 ```
 After downloading the datasets, please sepcify the training, test and OOD directories in 'config.py' script.
 
