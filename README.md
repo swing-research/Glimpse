@@ -31,20 +31,19 @@ conda env create -f environment.yml
 ```
 
 ## Dataset
-All datasets are uploaded to SwitchDrive. You can download the full [LoDoPaB-CT](https://www.nature.com/articles/s41597-021-00893-z) dataset from [here](https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC). We also provided a small subset of LoDoPaB-CT which contains around 1000 and 100 [training](https://drive.switch.ch/index.php/s/qMlALcE7AZzUPBh) and [test](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) samples.
-All arguments for training are explained in config.py. You can also download the out-of-distribution (OOD) [brain images](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) which containd 18 samples to assess model generalization. The datasets can also be downloaded from the following commands,
+All datasets have been uploaded to SwitchDrive. You can access the complete [LoDoPaB-CT](https://www.nature.com/articles/s41597-021-00893-z) by downloading it from [here](https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC). Additionally, we have made available a smaller subset of the LoDoPaB-CT dataset, comprising approximately 1000 [training](https://drive.switch.ch/index.php/s/qMlALcE7AZzUPBh) and 100 [test](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) samples. Moreover, to evaluate model generalization, we have included out-of-distribution (OOD) [brain images](https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W) consisting of 18 samples. These datasets can be downloaded using the following commands:
 
-Full LoDoPaB-CT:
+Complete LoDoPaB-CT:
 ```sh
 curl -O -J https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC/download
 ```
 
-Small training subset:
+Small LoDoPaB-CT training subset:
 ```sh
 curl -O -J https://drive.switch.ch/index.php/s/qMlALcE7AZzUPBh/download
 ```
 
-Small test subset:
+Small LoDoPaB-CT test subset:
 ```sh
 curl -O -J https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W/download
 ```
@@ -53,11 +52,11 @@ Out-of-didstribution brain images:
 ```sh
 curl -O -J https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W/download
 ```
-After downloading the datasets, you need to sepcify the training, test and OOD directories in config.py script.
+After downloading the datasets, please sepcify the training, test and OOD directories in 'config.py' script.
 
 ## Experiments
 ### Train
-All arguments for training are explained in config.py. After specifying your arguments, you can run the following command to train the model:
+All arguments for training are explained in 'config.py'. After specifying your arguments, you can run the following command to train the model:
 ```sh
 python3 train.py 
 ```
