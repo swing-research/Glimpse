@@ -55,7 +55,7 @@ curl -O -J https://drive.switch.ch/index.php/s/fWBUmtZjozwpN9W/download
 After downloading the datasets, please sepcify the training, test and OOD directories in 'config.py' script.
 
 ## Experiments
-### Train
+### Training & Inference
 All arguments for training are explained in 'config.py'. After specifying your arguments, you can run the following command to train the model:
 ```sh
 python3 train.py 
