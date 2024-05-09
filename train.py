@@ -10,6 +10,8 @@ from utils import *
 from data_loader import *
 from results import evaluator
 import config
+# from simulator import Simulator
+from ops.radon_3d_lib import ParallelBeamGeometry3DOpAngles_rectangular
 
 torch.manual_seed(0)
 np.random.seed(0)
@@ -19,8 +21,7 @@ enable_cuda = True
 device = torch.device('cuda:' + str(config.gpu_num) if torch.cuda.is_available() and enable_cuda else 'cpu')
 
 # experiment path
-exp_path = 'experiments/' \
-    + str(config.image_size) + '_' + str(config.n_angles) + '_' + config.exp_desc
+exp_path = 'experiments_3D/' + config.exp_desc
 os.makedirs(exp_path, exist_ok=True)
 
 
@@ -28,56 +29,48 @@ step_size = 50
 gamma = 0.5
 myloss = F.mse_loss
 # myloss = F.l1_loss
-num_batch_pixels = 3 # The number of iterations over each batch
-batch_pixels = 512 # Number of pixels to optimize in each iteration
+num_batch_pixels = 100 # The number of iterations over each batch
+batch_pixels = 3000 # Number of pixels to optimize in each iteration
 
 # Print the experiment setup:
 print('Experiment setup:')
-print('---> num epochs: {}'.format(config.n_epochs))
-print('---> batch_size: {}'.format(config.batch_size))
-print('---> Learning rate: {}'.format(config.learning_rate))
-print('---> experiment path: {}'.format(exp_path))
-print('---> image size: {}'.format(config.image_size))
+print(f'---> num epochs: {config.n_epochs}')
+print(f'---> batch_size: {config.batch_size}')
+print(f'---> Learning rate: {config.learning_rate}')
+print(f'---> experiment path: {exp_path}')
 
 # Dataset:
 
-train_dataset = CT_images(config.train_path, image_size = config.image_size,
-                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
-                          theta_init = config.theta_init, subset = 'train')
-test_dataset = CT_images(config.test_path, image_size = config.image_size,
-                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
-                          theta_init = config.theta_init, subset = 'test')
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=24, shuffle = True)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
+train_dataset = simulatorVolumes(root_dir= config.train_path, normalize_type= 'standard',
+                                 models= config.train_samples)
+test_dataset = simulatorVolumes(root_dir= config.test_path, normalize_type= 'standard',
+                                models= config.test_samples)
+
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=16,
+                                           shuffle = True, pin_memory = True,pin_memory_device = 'cuda:' + str(config.gpu_num))
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=16,
+                                           shuffle = False, pin_memory = True,pin_memory_device = 'cuda:' + str(config.gpu_num))
 
 ntrain = len(train_loader.dataset)
 n_test = len(test_loader.dataset)
 
-n_ood = 0
-if config.ood_analysis:
-    ood_dataset = CT_images(config.ood_path, image_size = config.image_size,
-                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
-                          theta_init = config.theta_init, subset = 'ood')
-    
-    ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
-    n_ood= len(ood_loader.dataset)
 
-print('---> Number of training, test and ood samples: {}, {}, {}'.format(ntrain,n_test, n_ood))
+print(f'---> Number of training, test and ood samples: {ntrain}, {n_test}')
 
 # Loading model
-plot_per_num_epoch = 1 if ntrain > 10000 else 30000//ntrain
+plot_per_num_epoch = 1
 
-model = glimpse(image_size = config.image_size, w_size = config.w_size,
-                theta_init = config.theta_init, lsg = config.lsg,
-                 learnable_filter = config.learnable_filter,
-                 filter_init = config.filter_init).to(device)
+model = glimpse(n1 = config.n1, n2 = config.n2 , n3 = config.n3,
+                patch_shape= config.patch_shape, learned_geo= config.learned_geo,
+                theta_init = config.data.angles, lsg = config.lsg,
+                learnable_filter = config.learnable_filter,
+                filter_init = config.filter_init).to(device)
 # model = torch.nn.DataParallel(model) # Using multiple GPUs
 num_param = count_parameters(model)
 print('---> Number of trainable parameters: {}'.format(num_param))
 
 optimizer = Adam(model.parameters(), lr=config.learning_rate)
-
 
 checkpoint_exp_path = os.path.join(exp_path, 'glimpse.pt')
 if os.path.exists(checkpoint_exp_path) and config.restore_model:
@@ -86,7 +79,12 @@ if os.path.exists(checkpoint_exp_path) and config.restore_model:
     optimizer.load_state_dict(checkpoint_glimpse['optimizer_state_dict'])
     print('glimpse is restored...')
 
+operator =  ParallelBeamGeometry3DOpAngles_rectangular((config.n1,config.n2,config.n3),
+                                                       config.data.angles, op_snr=np.inf,
+                                                       fact=1)
 
+evaluator(ep = -1, subset = 'test', data_loader = test_loader, model = model, exp_path = exp_path,
+          operator = operator)
 if config.train:
     print('Training...')
 
@@ -98,35 +96,63 @@ if config.train:
         model.train()
         t1 = default_timer()
         loss_epoch = 0
+        cnt = 0
 
-        for image, sinogram in train_loader:
+        for vol in train_loader:
             
-            batch_size = image.shape[0]
-            image = image.to(device)
-            sinogram = sinogram.to(device)
+            vol = vol[0].to(device)
 
-            model.train()
+            proj = operator(vol)
+            proj = noise_simulation(proj, config.data.noise_level)
+            proj = proj[None,...].detach()
+
+            vol = vol[...,None]
+            vol = vol.reshape(-1,1)
+
+            coords = get_mgrid(config.n1, config.n2, config.n3)
+            coords = coords.reshape(-1, 3)
+            vol = vol.cpu().numpy()
+            coords = coords.cpu().numpy()
+
+            pixel_data = pixel_loader(vol, coords, n_samples= num_batch_pixels * batch_pixels)
+            pixel_dataset = torch.utils.data.DataLoader(pixel_data,
+                                                       batch_size=batch_pixels,
+                                                       shuffle = False)
+                                                    #    num_workers=16,
+                                                    #    pin_memory = True,
+                                                    #    pin_memory_device = 'cuda:' + str(config.gpu_num))
             
-            for i in range(num_batch_pixels):
+            del vol, coords
 
-                coords = get_mgrid(config.image_size).reshape(-1, 2)
-                coords = torch.unsqueeze(coords, dim = 0)
-                coords = coords.expand(batch_size , -1, -1).to(device)
-                
+
+            # print(vol.shape, vol.min(), vol.max())
+            # print(proj.shape, proj.min(), proj.max())
+
+            for batch_coords, batch_image in pixel_dataset:
+
+                batch_coords = batch_coords.to(device)[None, ...]
+                batch_image = batch_image.to(device)[None,...]
+
                 optimizer.zero_grad()
-                pixels = np.random.randint(low = 0, high = config.image_size**2, size = batch_pixels)
-                batch_coords = coords[:,pixels]
-                batch_image = image[:,pixels]
 
-                out = model(batch_coords, sinogram)
-                mse_loss = myloss(out.reshape(batch_size, -1) , batch_image.reshape(batch_size, -1) )
+                out = model(batch_coords, proj)
+                mse_loss = myloss(out.reshape(1, -1) , batch_image[:,:,0].reshape(1, -1) )
                 total_loss = mse_loss
 
                 total_loss.backward()
                 optimizer.step()
                 loss_epoch += total_loss.item()
 
+                # Free up memory periodically
+                torch.cuda.empty_cache()
+            
+            del pixel_dataset, pixel_data
+            
+            print(cnt)
+            cnt = cnt+1
+
         if ep % plot_per_num_epoch == 0 or (ep + 1) == config.n_epochs:
+        # if True:
 
             t2 = default_timer()
             loss_epoch/= ntrain
@@ -143,23 +169,15 @@ if config.train:
                         'optimizer_state_dict': optimizer.state_dict()}, checkpoint_exp_path)
 
             print('ep: {}/{} | time: {:.0f} | Loss: {:.6f} | GPU: {:.0f}'.format(ep, config.n_epochs, t2-t1,
-                                                                                   loss_epoch, config.gpu_num))
+                                                                                loss_epoch, config.gpu_num))
             with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
                 file.write('ep: {}/{} | time: {:.0f} | Loss: {:.6f} | gpu: {:.0f}'.format(ep, config.n_epochs, t2-t1,
-                                                                                   loss_epoch, config.gpu_num))
+                                                                                loss_epoch, config.gpu_num))
                 file.write('\n')
 
 
             evaluator(ep = ep, subset = 'test', data_loader = test_loader,
-                        model = model, exp_path = exp_path)
-            if config.ood_analysis:
-                evaluator(ep = ep, subset = 'ood', data_loader = ood_loader,
-                    model = model, exp_path = exp_path)
-
-evaluator(ep = -1, subset = 'test', data_loader = test_loader, model = model, exp_path = exp_path)
-if config.ood_analysis:
-    evaluator(ep = -1, subset = 'ood', data_loader = ood_loader, model = model, exp_path = exp_path)
-
+                        model = model, exp_path = exp_path, operator = operator)
 
 
 

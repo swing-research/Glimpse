@@ -1,62 +1,65 @@
 import numpy as np
+import ml_collections
 
 n_epochs = 200 # number of epochs to train glimpse network
-batch_size = 64
-gpu_num = 3 # GPU number
-exp_desc = 'default_demo' # Add a small descriptor to the experiment
-image_size = 128 # Maximum resolution of the training dataset
-n_angles = 30 # Number of channels of the dataset
-noise_snr = 30
+batch_size = 1
+gpu_num = 2 # GPU number
+exp_desc = 'base_learnf' # Add a small descriptor to the experiment
+n1 = 800
+n2 = 800
+n3 = 300
 train = True # Train or just reload to test
 restore_model = True
-ood_analysis = True # Performance assesment on out-of-distribution (OOD) data (brain images)
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
 learnable_filter = True # Learnable filter applied to sinogram
-w_size = 9
 learning_rate = 1e-4
-uncalibrated_type = 'No' # No: calibrated, random: randomly shifted projections
-# fixed: fixed shift in projection angles, blind: no information from projection angles
-lsg = True  # Learnable sensore geomtery
-sample_number = 25 # Number of samples in used in visualization
+lsg = False  # Learnable sensore geomtery
 cmap = 'gray' # 'rgb' or for RGB images and other matplotlib colormaps for grayscales
-theta_actual = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+patch_shape = 'random'
+learned_geo = True
 
-
-np.random.seed(2)
-if uncalibrated_type == 'No':
-    theta_init = theta_actual
-
-elif uncalibrated_type == 'random':
-    # uncalibrated random
-    shifts = np.random.randn(n_angles) * 2.0
-    theta_init = np.linspace(0.0, 180.0, n_angles, endpoint=False)
-    theta_init = theta_init + shifts
-
-elif uncalibrated_type == 'fixed':
-    # uncalibrated shifts:
-    theta_init = np.linspace(3.0, 183.0, n_angles, endpoint=False)
-
-elif uncalibrated_type == 'blind':
-    # blind
-    theta_init = np.random.rand(n_angles) * 180.0
-    theta_init = np.sort(theta_init)
-
-
-# Datasets paths:
-
-# train_path = 'datasets/128_30_complete_40/train'
-# test_path = 'datasets/128_30_complete_40/test'
-# ood_path = 'datasets/128_30_complete_40/outlier'
-
-# train_path = 'datasets/128_30_complete_30_right/train'
-# test_path = 'datasets/128_30_complete_30_right/test'
-# ood_path = 'datasets/128_30_complete_30_right/outlier'
-
-# train_path = 'datasets/512_30_complete_40_right/train'
-# test_path = 'datasets/512_30_complete_40_right/test'
-# ood_path = 'datasets/512_30_complete_40_right/outlier'
-
-train_path = '../../datasets/CT/original_data/train'
-test_path = '../../datasets/CT/original_data/test'
+train_path = '/local/Tomograms_cryoET/sup_data/general'
+test_path = '/local/Tomograms_cryoET/sup_data/general'
 ood_path = '../datasets/CT_brain/test_samples/images'
 
+train_samples = ['model_model_1_res_6/', 
+                'model_model_2_res_6/', 
+                'model_model_3_res_6/', 
+                'model_model_4_res_4/', 
+                'model_model_5_res_5/', 
+                'model_model_6_res_6/', 
+                'model_model_7_res_6/',
+                'model_model_8_res_6/',
+                'model_model_9_res_4/',
+                'model_model_10_res_4/',
+                'model_model_11_res_5/',
+                'model_model_12_res_6/',
+                'model_model_13_res_4/',
+                'model_model_14_res_4/',
+                'model_model_15_res_5/',
+                'model_model_16_res_5/',
+                'model_model_17_res_6/',
+                'model_model_18_res_4/',
+                'model_model_19_res_6/',
+                'model_model_20_res_5/',
+                'model_model_21_res_6/',
+                'model_model_22_res_4/']
+
+test_samples = ['model_model_27_res_5/',
+                'model_model_28_res_5/',
+                'model_model_29_res_6/',
+                'model_model_30_res_6/']
+
+
+data = ml_collections.ConfigDict()
+# Note the angles max and min are used to create the ramp filter using odl
+data.angle_max = np.pi/3
+data.angle_min =  -np.pi/3
+data.n_projections = 41
+data.simulate_noise = True
+data.noise_level = 0 #[-10,5] # db
+data.pix = 8
+data.fixed_angles = True
+data.defocus_list = [-3, -4, -5, -6]
+data.dose_list =  [100,200,300,400,500,50,60]
+data.angles = np.linspace(data.angle_min, data.angle_max, data.n_projections)
