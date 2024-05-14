@@ -4,14 +4,14 @@ import ml_collections
 n_epochs = 200 # number of epochs to train glimpse network
 batch_size = 1
 gpu_num = 2 # GPU number
-exp_desc = 'base_learnf' # Add a small descriptor to the experiment
-n1 = 800
-n2 = 800
+exp_desc = 'base_-10dB_scales' # Add a small descriptor to the experiment
+n1 = 1024
+n2 = 1024
 n3 = 300
 train = True # Train or just reload to test
 restore_model = True
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
-learnable_filter = True # Learnable filter applied to sinogram
+learnable_filter = False # Learnable filter applied to sinogram
 learning_rate = 1e-4
 lsg = False  # Learnable sensore geomtery
 cmap = 'gray' # 'rgb' or for RGB images and other matplotlib colormaps for grayscales
@@ -57,7 +57,7 @@ data.angle_max = np.pi/3
 data.angle_min =  -np.pi/3
 data.n_projections = 41
 data.simulate_noise = True
-data.noise_level = 0 #[-10,5] # db
+data.noise_level = -10 #[-10,5] # db
 data.pix = 8
 data.fixed_angles = True
 data.defocus_list = [-3, -4, -5, -6]

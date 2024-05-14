@@ -229,7 +229,16 @@ class glimpse(nn.Module):
 
     def forward(self, coordinate, proj):
         b , b_pixels, _ = coordinate.shape
-        filtered_proj = custom_ramp_fft(proj,self.fourier_filter)
+
+        # if not proj.shape[2] == 2*self.fourier_filter.shape[0]:
+
+        #     fourier_filter = F.interpolate(self.fourier_filter[None,None,...], size = 2*proj.shape[2])[0,0]
+
+        # else:
+        #     fourier_filter = self.fourier_filter
+
+        fourier_filter = self.fourier_filter
+        filtered_proj = custom_ramp_fft(proj,fourier_filter)
 
         x_sin = self.sinogram_sampler(filtered_proj , coordinate) * 700
 

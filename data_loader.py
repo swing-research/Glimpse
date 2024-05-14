@@ -149,7 +149,8 @@ class simulatorVolumes(Dataset):
     def __init__(self, root_dir: str ,
                  models: list,
                  normalize_type: str = 'vol',
-                 negate_volume: bool = True):
+                 negate_volume: bool = True,
+                 n1: int = 1024):
         """
         Args:
             root_dir (string): Directory with all the folders.
@@ -163,6 +164,7 @@ class simulatorVolumes(Dataset):
         self.models = models
         self.normalize_type = normalize_type
         self.negate_volume = negate_volume
+        self.n1 = n1
 
 
 
@@ -222,7 +224,12 @@ class simulatorVolumes(Dataset):
         elif self.normalize_type == 'none':
             pass
 
-        vol = torch.FloatTensor(vol)
+        vol = torch.FloatTensor(vol).permute(2,0,1)
+
+        vol = F.interpolate(vol[None,...], size = self.n1,
+                        mode = 'bilinear',
+                        antialias= True,
+                        align_corners= True)[0].permute(1,2,0)
 
 
         return vol

@@ -6,10 +6,12 @@ import config
 import matplotlib.pyplot as plt
 # from simulator import Simulator
 from ops.radon_3d_lib import ParallelBeamGeometry3DOpAngles_rectangular
+import mrcfile
+import torch.nn.functional as F
 
 
 
-def evaluator(ep, subset, data_loader, model, exp_path, operator):
+def evaluator(ep, subset, data_loader, model, exp_path, operator, operator_real):
 
     # projection_simulator = Simulator(config.data)
     # operator =  ParallelBeamGeometry3DOpAngles_rectangular((config.n1,config.n2,config.n3),
@@ -89,12 +91,83 @@ def evaluator(ep, subset, data_loader, model, exp_path, operator):
     print('PSNR fbp: {:.1f} | PSNR glimpse: {:.1f} | SSIM fbp: {:.2f} | SSIM glimpse: {:.2f}'.format(
         psnr_fbp, psnr_recon, ssim_fbp, ssim_recon))
 
-    # with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
-    #     file.write('PSNR fbp: {:.1f} | PSNR glimpse: {:.1f} | SSIM fbp: {:.2f} | SSIM glimpse: {:.2f}'.format(
-    #         psnr_fbp, psnr_recon, ssim_fbp, ssim_recon))
-    #     file.write('\n')
-    #     if subset == 'ood':
-    #         file.write('\n')
+    with open(os.path.join(exp_path, 'results.txt'), 'a') as file:
+        file.write('PSNR fbp: {:.1f} | PSNR glimpse: {:.1f} | SSIM fbp: {:.2f} | SSIM glimpse: {:.2f}'.format(
+            psnr_fbp, psnr_recon, ssim_fbp, ssim_recon))
+        file.write('\n')
+        if subset == 'ood':
+            file.write('\n')
+
+
+    
+    # Real data analysis
+    print('Real Data')
+
+    # tkviui_PATH = '/local/Tomograms_cryoET/real_data_aligned/tkviui/areAlignProj.mrc'
+    # angle_PATH = '/local/Tomograms_cryoET/real_data_aligned/tkviui/tomo2_L1G1-dose_filt.tlt'
+    data_PATH = '/local/Tomograms_cryoET/real_data_aligned/10643-hiv/areTomo_aligned_20.mrc'
+
+    proj_real = mrcfile.read(data_PATH).astype(np.float32) 
+    proj_real = torch.tensor(proj_real).to(device)[None,...]
+
+    # proj_real = F.interpolate(proj_real, 800, mode='bilinear')
+    proj_real = proj_real - proj_real.mean()
+    proj_real = (proj_real/proj_real.max()) * 0.05
+
+    print(proj_real.shape, proj_real.min(), proj_real.max(), proj_real.mean())
+
+    # FBP:
+    fbp = operator.pinv(proj_real[0]).detach().cpu().numpy()[:,400,:]#[:,:,150]#[:,60,:]#
+    print(fbp.shape, fbp.min(), fbp.max(), fbp.mean())
+    
+    plt.imsave(os.path.join(results_folder, f'{ep}_{subset}_fbp_real.png'),
+               fbp, cmap = config.cmap)
+
+
+    # Glimpse:
+    model.eval()
+    coords = get_mgrid(proj_real.shape[2], proj_real.shape[3], config.n3)
+    # coords = coords[:,:,150:151]
+    coords = coords[:,500:501,:]
+    coords = coords.reshape(-1, 3)
+    coords = torch.unsqueeze(coords, dim = 0).to(device)
+    recon_np = batch_sampling(proj_real, coords,model, s = 4000)
+    recon_np = np.reshape(recon_np, [proj_real.shape[2], -1])
+    print(recon_np.shape, recon_np.min(), recon_np.max(), recon_np.mean())
+
+    plt.imsave(os.path.join(results_folder, f'{ep}_{subset}_glimpse_real_y.png'),
+        recon_np, cmap = config.cmap)
+    
+
+    # Glimpse:
+    model.eval()
+    coords = get_mgrid(proj_real.shape[2], proj_real.shape[3], config.n3)
+    # coords = coords[:,:,150:151]
+    coords = coords[500:501,:,:]
+    coords = coords.reshape(-1, 3)
+    coords = torch.unsqueeze(coords, dim = 0).to(device)
+    recon_np = batch_sampling(proj_real, coords,model, s = 4000)
+    recon_np = np.reshape(recon_np, [proj_real.shape[2], -1])
+    print(recon_np.shape, recon_np.min(), recon_np.max(), recon_np.mean())
+
+    plt.imsave(os.path.join(results_folder, f'{ep}_{subset}_glimpse_real_x.png'),
+        recon_np, cmap = config.cmap)
+    
+
+    # Glimpse:
+    model.eval()
+    coords = get_mgrid(proj_real.shape[2], proj_real.shape[3], config.n3)
+    coords = coords[:,:,150:151]
+    # coords = coords[:,400:401,:]
+    coords = coords.reshape(-1, 3)
+    coords = torch.unsqueeze(coords, dim = 0).to(device)
+    recon_np = batch_sampling(proj_real, coords,model, s = 4000)
+    recon_np = np.reshape(recon_np, [proj_real.shape[2], -1])
+    print(recon_np.shape, recon_np.min(), recon_np.max(), recon_np.mean())
+
+    plt.imsave(os.path.join(results_folder, f'{ep}_{subset}_glimpse_real_z.png'),
+        recon_np, cmap = config.cmap)
+
 
 
 

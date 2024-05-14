@@ -43,13 +43,13 @@ print(f'---> experiment path: {exp_path}')
 
 
 train_dataset = simulatorVolumes(root_dir= config.train_path, normalize_type= 'standard',
-                                 models= config.train_samples)
+                                 models= config.train_samples, n1 = config.n1)
 test_dataset = simulatorVolumes(root_dir= config.test_path, normalize_type= 'standard',
-                                models= config.test_samples)
+                                models= config.test_samples, n1 = config.n1)
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=16,
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=0,
                                            shuffle = True, pin_memory = True,pin_memory_device = 'cuda:' + str(config.gpu_num))
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=16,
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=0,
                                            shuffle = False, pin_memory = True,pin_memory_device = 'cuda:' + str(config.gpu_num))
 
 ntrain = len(train_loader.dataset)
@@ -83,8 +83,12 @@ operator =  ParallelBeamGeometry3DOpAngles_rectangular((config.n1,config.n2,conf
                                                        config.data.angles, op_snr=np.inf,
                                                        fact=1)
 
+operator_real =  ParallelBeamGeometry3DOpAngles_rectangular((1024,1024,300),
+                                                       config.data.angles, op_snr=np.inf,
+                                                       fact=1)
+
 evaluator(ep = -1, subset = 'test', data_loader = test_loader, model = model, exp_path = exp_path,
-          operator = operator)
+          operator = operator, operator_real = operator_real)
 if config.train:
     print('Training...')
 
@@ -117,7 +121,7 @@ if config.train:
             pixel_data = pixel_loader(vol, coords, n_samples= num_batch_pixels * batch_pixels)
             pixel_dataset = torch.utils.data.DataLoader(pixel_data,
                                                        batch_size=batch_pixels,
-                                                       shuffle = False)
+                                                       shuffle = False,)
                                                     #    num_workers=16,
                                                     #    pin_memory = True,
                                                     #    pin_memory_device = 'cuda:' + str(config.gpu_num))
@@ -177,7 +181,7 @@ if config.train:
 
 
             evaluator(ep = ep, subset = 'test', data_loader = test_loader,
-                        model = model, exp_path = exp_path, operator = operator)
+                        model = model, exp_path = exp_path, operator = operator, operator_real = operator_real)
 
 
 
