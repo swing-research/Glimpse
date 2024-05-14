@@ -64,7 +64,7 @@ class glimpse(nn.Module):
         hidden_units = np.power(2, hidden_units)
 
         for i in range(len(hidden_units)):
-            fcs1.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+            fcs1.append(nn.Linear(prev_unit, hidden_units[i], bias = False))
             prev_unit = hidden_units[i]
             if i < len(hidden_units)-1:
                 fcs1.append(nn.ReLU())
@@ -75,7 +75,7 @@ class glimpse(nn.Module):
         hidden_units = np.power(2, hidden_units)
 
         for i in range(len(hidden_units)):
-            fcs2.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+            fcs2.append(nn.Linear(prev_unit, hidden_units[i], bias = False))
             prev_unit = hidden_units[i]
             if i < len(hidden_units)-1:
                 fcs2.append(nn.ReLU())
@@ -86,7 +86,7 @@ class glimpse(nn.Module):
         hidden_units = np.power(2, hidden_units)
 
         for i in range(len(hidden_units)):
-            fcs3.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+            fcs3.append(nn.Linear(prev_unit, hidden_units[i], bias = False))
             prev_unit = hidden_units[i]
             if i < len(hidden_units)-1:
                 fcs3.append(nn.ReLU())
@@ -97,7 +97,7 @@ class glimpse(nn.Module):
         hidden_units = np.power(2, hidden_units)
 
         for i in range(len(hidden_units)):
-            fcs4.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+            fcs4.append(nn.Linear(prev_unit, hidden_units[i], bias = False))
             prev_unit = hidden_units[i]
             if i < len(hidden_units)-1:
                 fcs4.append(nn.ReLU())
@@ -109,7 +109,7 @@ class glimpse(nn.Module):
         hidden_units = np.power(2, hidden_units)
 
         for i in range(len(hidden_units)):
-            fcs_agg.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+            fcs_agg.append(nn.Linear(prev_unit, hidden_units[i], bias = False))
             prev_unit = hidden_units[i]
             if i < len(hidden_units)-1:
                 fcs_agg.append(nn.ReLU())

@@ -3,8 +3,8 @@ import ml_collections
 
 n_epochs = 200 # number of epochs to train glimpse network
 batch_size = 1
-gpu_num = 2 # GPU number
-exp_desc = 'base_-10dB_scales' # Add a small descriptor to the experiment
+gpu_num = 3 # GPU number
+exp_desc = 'base_-10dB_scales_no_bias' # Add a small descriptor to the experiment
 n1 = 1024
 n2 = 1024
 n3 = 300
