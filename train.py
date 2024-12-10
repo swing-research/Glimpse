@@ -14,6 +14,8 @@ import config
 torch.manual_seed(0)
 np.random.seed(0)
 
+torch.cuda.reset_peak_memory_stats()
+
 
 enable_cuda = True
 device = torch.device('cuda:' + str(config.gpu_num) if torch.cuda.is_available() and enable_cuda else 'cpu')
@@ -41,24 +43,28 @@ print('---> image size: {}'.format(config.image_size))
 
 # Dataset:
 
-train_dataset = CT_images(config.train_path, image_size = config.image_size,
-                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
-                          theta_init = config.theta_init, subset = 'train')
-test_dataset = CT_images(config.test_path, image_size = config.image_size,
-                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
-                          theta_init = config.theta_init, subset = 'test')
+train_dataset = CT_dataset(config.train_path, network =  'glimpse')
+test_dataset = CT_dataset(config.test_path, network =  'glimpse')
+
+# train_dataset = CT_images(config.train_path, image_size = config.image_size,
+#                           noise_snr = config.noise_snr, theta_actual = config.theta_actual,
+#                           theta_init = config.theta_init, subset = 'train')
+# test_dataset = CT_images(config.test_path, image_size = config.image_size,
+#                           noise_snr = config.noise_snr, theta_actual = config.theta_actual,
+#                           theta_init = config.theta_init, subset = 'test')
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=config.batch_size, num_workers=24, shuffle = True)
-test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, num_workers=24, shuffle = False)
 
 ntrain = len(train_loader.dataset)
 n_test = len(test_loader.dataset)
 
 n_ood = 0
 if config.ood_analysis:
-    ood_dataset = CT_images(config.ood_path, image_size = config.image_size,
-                          noise_snr = config.noise_snr, theta_actual = config.theta_actual,
-                          theta_init = config.theta_init, subset = 'ood')
+    ood_dataset = CT_dataset(config.ood_path, network =  'glimpse')
+    # ood_dataset = CT_images(config.ood_path, image_size = config.image_size,
+    #                       noise_snr = config.noise_snr, theta_actual = config.theta_actual,
+    #                       theta_init = config.theta_init, subset = 'ood')
     
     ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=config.batch_size, num_workers=24, shuffle = False)
     n_ood= len(ood_loader.dataset)
@@ -71,7 +77,8 @@ plot_per_num_epoch = 1 if ntrain > 10000 else 30000//ntrain
 model = glimpse(image_size = config.image_size, w_size = config.w_size,
                 theta_init = config.theta_init, lsg = config.lsg,
                  learnable_filter = config.learnable_filter,
-                 filter_init = config.filter_init).to(device)
+                 filter_init = config.filter_init, network = config.network,
+                 patch_shape = config.patch_shape, learned_patch = config.learned_patch).to(device)
 # model = torch.nn.DataParallel(model) # Using multiple GPUs
 num_param = count_parameters(model)
 print('---> Number of trainable parameters: {}'.format(num_param))
@@ -85,6 +92,11 @@ if os.path.exists(checkpoint_exp_path) and config.restore_model:
     model.load_state_dict(checkpoint_glimpse['model_state_dict'])
     optimizer.load_state_dict(checkpoint_glimpse['optimizer_state_dict'])
     print('glimpse is restored...')
+
+
+evaluator(ep = -1, subset = 'test', data_loader = test_loader, model = model, exp_path = exp_path)
+if config.ood_analysis:
+    evaluator(ep = -1, subset = 'ood', data_loader = ood_loader, model = model, exp_path = exp_path)
 
 
 if config.train:
@@ -126,6 +138,8 @@ if config.train:
                 optimizer.step()
                 loss_epoch += total_loss.item()
 
+            
+
         if ep % plot_per_num_epoch == 0 or (ep + 1) == config.n_epochs:
 
             t2 = default_timer()
@@ -155,10 +169,6 @@ if config.train:
             if config.ood_analysis:
                 evaluator(ep = ep, subset = 'ood', data_loader = ood_loader,
                     model = model, exp_path = exp_path)
-
-evaluator(ep = -1, subset = 'test', data_loader = test_loader, model = model, exp_path = exp_path)
-if config.ood_analysis:
-    evaluator(ep = -1, subset = 'ood', data_loader = ood_loader, model = model, exp_path = exp_path)
 
 
 

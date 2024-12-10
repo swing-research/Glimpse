@@ -3,13 +3,14 @@ import numpy as np
 n_epochs = 200 # number of epochs to train glimpse network
 batch_size = 64
 gpu_num = 3 # GPU number
-exp_desc = 'default_demo' # Add a small descriptor to the experiment
+exp_desc = 'multiMLP_370' # Add a small descriptor to the experiment
 image_size = 128 # Maximum resolution of the training dataset
 n_angles = 30 # Number of channels of the dataset
 noise_snr = 30
 train = True # Train or just reload to test
-restore_model = True
+restore_model = False
 ood_analysis = True # Performance assesment on out-of-distribution (OOD) data (brain images)
+network = 'multi_MLP'
 filter_init = 'ramp' # filters = ['ramp', 'shepp-logan', 'cosine', 'hamming', 'hann']
 learnable_filter = True # Learnable filter applied to sinogram
 w_size = 9
@@ -17,9 +18,11 @@ learning_rate = 1e-4
 uncalibrated_type = 'No' # No: calibrated, random: randomly shifted projections
 # fixed: fixed shift in projection angles, blind: no information from projection angles
 lsg = True  # Learnable sensore geomtery
-sample_number = 25 # Number of samples in used in visualization
+sample_number = 1 # Number of samples in used in visualization
 cmap = 'gray' # 'rgb' or for RGB images and other matplotlib colormaps for grayscales
 theta_actual = np.linspace(0.0, 180.0, n_angles, endpoint=False)
+patch_shape = 'round'
+learned_patch = True
 
 
 np.random.seed(2)
@@ -48,15 +51,21 @@ elif uncalibrated_type == 'blind':
 # test_path = 'datasets/128_30_complete_40/test'
 # ood_path = 'datasets/128_30_complete_40/outlier'
 
-# train_path = 'datasets/128_30_complete_30_right/train'
-# test_path = 'datasets/128_30_complete_30_right/test'
-# ood_path = 'datasets/128_30_complete_30_right/outlier'
+train_path = 'datasets/128_30_complete_30_right/train'
+test_path = 'datasets/128_30_complete_30_right/test'
+ood_path = 'datasets/128_30_complete_30_right/outlier'
+
+# train_path = 'datasets/128_90_complete_30/train'
+# test_path = 'datasets/128_90_complete_30/test'
+# ood_path = 'datasets/128_90_complete_30/outlier'
+
+
 
 # train_path = 'datasets/512_30_complete_40_right/train'
 # test_path = 'datasets/512_30_complete_40_right/test'
 # ood_path = 'datasets/512_30_complete_40_right/outlier'
 
-train_path = '../../datasets/CT/original_data/train'
-test_path = '../../datasets/CT/original_data/test'
-ood_path = '../datasets/CT_brain/test_samples/images'
+# train_path = '../../datasets/CT/original_data/train'
+# test_path = '../../datasets/CT/original_data/test'
+# ood_path = '../datasets/CT_brain/test_samples/images'
 

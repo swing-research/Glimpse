@@ -4,7 +4,7 @@ import os
 from utils import *
 import config
 import matplotlib.pyplot as plt
-
+from timeit import default_timer
 
 
 def evaluator(ep, subset, data_loader, model, exp_path):
@@ -59,7 +59,40 @@ def evaluator(ep, subset, data_loader, model, exp_path):
     coords = get_mgrid(config.image_size)
     coords = torch.unsqueeze(coords, dim = 0)
     coords = coords.expand(images.shape[0] , -1, -1).to(device)
-    recon_np = batch_sampling(sinogram, coords,1, model)
+    t1 = default_timer()
+    recon_np = batch_sampling(sinogram, coords,1, model, s = 1024)
+    t2 = default_timer()
+    print(f'Elapsed inference time: {t2-t1}')
+    max_memory_used = torch.cuda.max_memory_allocated(device = device)
+    print(f"Maximum GPU memory used: {max_memory_used / (1024 ** 2):.2f} MB")
+
+
+
+    # t1 = default_timer()
+    # batch_sampling(sinogram, coords,1, model, s = 1024)
+    # t2 = default_timer()
+    # print(f'Elapsed inference time: {t2-t1}')
+    # max_memory_used = torch.cuda.max_memory_allocated(device = device)
+    # print(f"Maximum GPU memory used: {max_memory_used / (1024 ** 2):.2f} MB")
+
+    # t1 = default_timer()
+    # batch_sampling(sinogram, coords,1, model, s = 512)
+    # t2 = default_timer()
+    # print(f'Elapsed inference time: {t2-t1}')
+    # max_memory_used = torch.cuda.max_memory_allocated(device = device)
+    # print(f"Maximum GPU memory used: {max_memory_used / (1024 ** 2):.2f} MB")
+
+
+    # t1 = default_timer()
+    # batch_sampling(sinogram, coords,1, model, s = 256)
+    # t2 = default_timer()
+    # print(f'Elapsed inference time: {t2-t1}')
+    # max_memory_used = torch.cuda.max_memory_allocated(device = device)
+    # print(f"Maximum GPU memory used: {max_memory_used / (1024 ** 2):.2f} MB")
+
+
+
+
     recon_np = np.reshape(recon_np, [-1, config.image_size, config.image_size,1])[:,:,:,0]
 
     recon_write = recon_np[:num_samples_write].reshape(

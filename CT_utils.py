@@ -124,5 +124,5 @@ def CT_sinogram(image_size = 128, n_angles = 30,
 if __name__ == '__main__':
     CT_sinogram(image_size = 128,
                 missing_cone= 'complete',
-                n_angles= 30,
-                noise_snr= 20)
+                n_angles= 90,
+                noise_snr= 30)

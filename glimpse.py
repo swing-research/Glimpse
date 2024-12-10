@@ -19,10 +19,30 @@ def reflect_coords(ix, min_val, max_val):
     return ix
 
 
+class MLP_net(nn.Module):
+    def __init__(self, prev_unit, out_unit, inter_unit = 128):
+        super(MLP_net, self).__init__()
+        hidden_units = [inter_unit,inter_unit,inter_unit,out_unit]
+        fcs = []
+        for i in range(len(hidden_units)):
+            fcs.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+            prev_unit = hidden_units[i]
+
+        self.fcs = nn.ModuleList(fcs)
+
+    def forward(self, x):
+        for i in range(len(self.fcs)-1):
+            x = F.relu(self.fcs[i](x))
+        x = self.fcs[-1](x)
+
+        return x
+
+
 class glimpse(nn.Module):
 
     def __init__(self, image_size, w_size, theta_init, lsg,
-                 learnable_filter, filter_init):
+                 learnable_filter, filter_init, network, patch_shape,
+                 learned_patch):
         super(glimpse, self).__init__()
 
         self.image_size = image_size
@@ -31,24 +51,80 @@ class glimpse(nn.Module):
         self.learnable_filter = learnable_filter
         self.filter_init = filter_init
         self.n_angles = len(theta_init)
+        self.network = network
+        self.patch_shape = patch_shape
+        self.learned_patch = learned_patch
 
-        fcs = []
-        
+        self.N = w_size
+        self.M = w_size
+
         prev_unit = self.w_size * self.w_size * self.n_angles
-        hidden_units = [8,8,8,8,7,7,7,6,6,0] # base
-        hidden_units = np.power(2, hidden_units)
+        if self.network == 'multi_MLP':
+            num_mlps = self.w_size
+            total_features = num_mlps * 100
+            # input_dim = self.N * (2*self.num_filters*self.c_in + self.c_in)
+            input_dim = prev_unit//num_mlps
+            print(input_dim)
+            fcs = []
+            for _ in range(num_mlps):
+                fcs.append(MLP_net(input_dim, total_features//num_mlps, 370))
 
-        for i in range(len(hidden_units)):
-            fcs.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
-            prev_unit = hidden_units[i]
 
-        self.MLP = nn.ModuleList(fcs)
+            self.mixer_MLP = MLP_net(total_features, 1, 370)
+            self.MLP = nn.ModuleList(fcs)
+        
+        elif self.network == 'MLP':
+
+            fcs = []
+            hidden_units = [8,8,8,8,7,7,7,6,6,0] # base
+            # hidden_units = [9,9,9,9,9,0] # big
+            # hidden_units = [10,10,10,9,9,0] # vbig
+            hidden_units = np.power(2, hidden_units)
+
+            for i in range(len(hidden_units)):
+                fcs.append(nn.Linear(prev_unit, hidden_units[i], bias = True))
+                prev_unit = hidden_units[i]
+
+            self.MLP = nn.ModuleList(fcs)
 
         # Adaptive receptive field
         ws1 = torch.ones(1)
         self.ws1 = nn.Parameter(ws1.clone().detach(), requires_grad=True)
         ws2 = torch.ones(1)
         self.ws2 = nn.Parameter(ws2.clone().detach(), requires_grad=True)
+
+
+        if self.patch_shape == 'round':
+
+            r = self.N/self.image_size
+            thetas = torch.arange(self.M)*(2*np.pi/self.M)
+            x = r*torch.cos(thetas)/(2*self.N)
+            y = r*torch.sin(thetas)/(2*self.N)
+            x = x[...,None]
+            y = y[...,None]
+            xy = torch.concat([x,y], dim = 1)[None,...]
+            xy = xy.expand(self.N,-1,-1)
+            idx = (torch.arange(0,self.N))[...,None,None]
+            patch = idx * xy
+
+        elif self.patch_shape == 'square':
+
+            x = torch.arange(-(self.N//2), self.N//2+1)/(self.image_size)
+            y = torch.arange(-(self.M//2), self.M//2+1)/(self.image_size)
+            x , y = torch.meshgrid(x,y, indexing='ij')
+            x = x[...,None]
+            y = y[...,None]
+            patch = torch.concat([x,y], dim = 2)[None,...]
+
+        elif self.patch_shape == 'random':
+
+            patch = 2 * self.N*(torch.rand(self.N, self.M,2) - 0.5)/(self.image_size)
+
+
+        self.patch = nn.Parameter(patch.clone().detach(), requires_grad=self.learned_patch)
+
+        patch_scale = torch.ones(1)
+        self.patch_scale = nn.Parameter(patch_scale.clone().detach(), requires_grad=True) 
 
 
         n = int(np.ceil((self.image_size) * np.sqrt(2)))
@@ -103,9 +179,36 @@ class glimpse(nn.Module):
         return cbp
 
         
+    def sinogram_sampler_learnable(self, sinogram, coordinate):
+
+
+        b , n , _ = sinogram.shape
+        h = np.int32(np.floor(n/np.sqrt(2)))
+        b_pixels = coordinate.shape[1]
+        coordinate = coordinate * 2
+
+        patch = self.patch_scale * self.patch / (h/self.image_size)
+
+        patch = patch[None, None]
+        N = self.N
+        M = self.M
+
+        coordinate = coordinate.unsqueeze(2).unsqueeze(2)
+        f = coordinate + patch
+        f = f.reshape(b, b_pixels * N, M,2)
+
+        f = f.reshape(b, b_pixels * N * M, 2)
+        sinogram_samples = self.extract_sin(f/2, sinogram)
+        sinogram_samples = sinogram_samples.reshape(b, -1, b_pixels * N, M)
+
+        sinogram_samples = sinogram_samples.permute(0,2,3,1)
+        sinogram_samples = sinogram_samples.reshape(b, b_pixels , N, M,self.n_angles)
+        sinogram_samples = sinogram_samples.reshape(b* b_pixels , N, M,self.n_angles)
+        sinogram_samples = sinogram_samples.permute(0,3,1,2)
+
+        return sinogram_samples
 
     def sinogram_sampler(self, sinogram, coordinate , output_size):
-        '''Cropper using Spatial Transformer'''
 
         d_coordinate = coordinate * 2
         b , n , _ = sinogram.shape
@@ -153,13 +256,34 @@ class glimpse(nn.Module):
 
         b , b_pixels , _ = coordinate.shape
 
-        x_sin = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = self.w_size)
+        # x_sin = self.sinogram_sampler(filtered_sinogram , coordinate , output_size = self.w_size)
+        x_sin = self.sinogram_sampler_learnable(filtered_sinogram , coordinate)
 
-        x = torch.flatten(x_sin, 1)
-        for i in range(len(self.MLP)-1):
-            x = F.relu(self.MLP[i](x))
+        if self.network == 'multi_MLP':
+            # print(x.shape)
+            # x = x.reshape(x.shape[0], x.shape[1],-1)
+            # print(x.shape)
 
-        x = self.MLP[-1](x)
+            # chunk_len = x.shape[2]//len(self.MLP)
+            chunk_outs = []
+            for i in range(len(self.MLP)):
+                chunk = x_sin[:, :, :, i]
+                chunk = torch.flatten(chunk,1)
+                chunk_out = self.MLP[i](chunk)
+                chunk_outs.append(chunk_out)
+            
+            x = torch.cat(chunk_outs, dim=1)
+            x = self.mixer_MLP(x)
+            
+        elif self.network == 'MLP':
+            x = torch.flatten(x_sin, 1)
+            for i in range(len(self.MLP)-1):
+                x = F.relu(self.MLP[i](x))
+            x = self.MLP[-1](x)
+
+        else:
+            x = x_sin.mean(dim = 1, keepdim = True)
+
         x = x.reshape(b, b_pixels, -1)
         x = x * np.pi/2
 

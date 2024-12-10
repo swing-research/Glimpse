@@ -9,6 +9,7 @@ from utils import *
 import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.nn.functional as F
+from timeit import default_timer
 
 def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 
@@ -18,8 +19,8 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
         file.write('\n')
 
     if subset == 'test':
-        num_samples_write = 25
-        ngrid = 5
+        num_samples_write = 1
+        ngrid = 1
     else:
         num_samples_write = 16
         ngrid = 4
@@ -38,7 +39,14 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
 
         x_test = x_test.to(device)
         y_test = y_test.to(device)
-        xhat_test = model(y_test)
+
+        t1 = default_timer()
+        with torch.no_grad():
+            xhat_test = model(y_test)
+        t2 = default_timer()
+        print(f'Elapsed inference time: {t2-t1}')
+        max_memory_used = torch.cuda.max_memory_allocated(device = device)
+        print(f"Maximum GPU memory used: {max_memory_used / (1024 ** 2):.2f} MB")
 
         xhat_test = xhat_test.cpu().detach().numpy()
         x_test = x_test.cpu().detach().numpy()
@@ -96,27 +104,30 @@ def evaluation(i, subset, test_loader, model, results_path, noise_snr):
         file.write('\n')
 
 
+torch.cuda.reset_peak_memory_stats()
 # Params
-ood_analysis = True
+ood_analysis = False
 N_epochs = 200
-batch_size = 64
+batch_size = 10
 image_size = 128
 num_angles = 30
 gpu_num = 2
-run_train = True
-exp_path = 'experiments/uncalibrated/'
+run_train = False
+exp_path = 'experiments/test_inerence/'
 myloss = F.mse_loss
 # myloss = F.l1_loss
-# train_path = '../../../datasets/CT/original_data/train'
-# test_path = '../../../datasets/CT/original_data/test'
-# ood_path = '../../datasets/CT_brain/test_samples/images'
-train_path = '../datasets/128_30_complete_30_right/train'
-test_path = '../datasets/128_30_complete_30_right/test'
-ood_path = '../datasets/128_30_complete_30_right/outlier'
-unet_reload = True
+train_path = '../../../datasets/CT/original_data/train'
+test_path = '../../../datasets/CT/original_data/test'
+ood_path = '../../datasets/CT_brain/test_samples/images'
+
+# train_path = '../datasets/128_30_complete_30_right/train'
+# test_path = '../datasets/128_30_complete_30_right/test'
+# ood_path = '../datasets/128_30_complete_30_right/outlier'
+unet_reload = False
 test_noise_snr = 30
 ood_noise_snr = 30
 train_noise_snr = 30
+theta_actual = np.linspace(0.0, 180.0, num_angles, endpoint=False)
 
 if os.path.exists(exp_path) == False:
     os.mkdir(exp_path)
@@ -133,12 +144,19 @@ model = torch.hub.load('mateuszbuda/brain-segmentation-pytorch', 'unet',
 # model = nn.DataParallel(model)
 
 num_param = count_parameters(model)
-print('---> Number of trainable parameters of supercnn: {}'.format(num_param))
+print('---> Number of trainable parameters of U-Net: {}'.format(num_param))
 
 
 # Dataset:
-train_dataset = CT_dataset(train_path, unet = True, train = True)
-test_dataset = CT_dataset(test_path, unet = True, train = False)
+# train_dataset = CT_dataset(train_path, network =  'unet')
+# test_dataset = CT_dataset(test_path, network =  'unet')
+train_dataset = CT_images(train_path, image_size = image_size,
+                          noise_snr = train_noise_snr, theta_actual = theta_actual,
+                          theta_init = config.theta_init, subset = 'train', unet= True)
+
+test_dataset = CT_images(test_path, image_size = image_size,
+                          noise_snr = test_noise_snr, theta_actual = theta_actual,
+                          theta_init = theta_actual, subset = 'test', unet= True)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=24, shuffle = True)
 test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, num_workers=24)
@@ -148,7 +166,7 @@ n_test = len(test_loader.dataset)
 
 n_ood = 0
 if ood_analysis:
-    ood_dataset = CT_dataset(ood_path, unet = True, train = False)
+    ood_dataset = CT_dataset(ood_path, network =  'unet')
     ood_loader = torch.utils.data.DataLoader(ood_dataset, batch_size=batch_size, num_workers=24)
     n_ood= len(ood_loader.dataset)
 

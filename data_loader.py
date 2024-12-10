@@ -8,12 +8,12 @@ from skimage.transform import iradon, radon
 
 class CT_dataset(torch.utils.data.Dataset):
 
-    def __init__(self, directory, unet = False):
+    def __init__(self, directory, network = 'glimpse'):
 
         self.directory = directory
 
         self.name_list = sorted(os.listdir(self.directory))
-        self.unet = unet
+        self.network = network
 
 
     def __len__(self):
@@ -29,11 +29,18 @@ class CT_dataset(torch.utils.data.Dataset):
         image = torch.tensor(image, dtype = torch.float32)
 
 
-        if self.unet:
+        if self.network == 'unet':
 
             fbp = file['fbp']
             fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
             return image[None,...], fbp
+        
+        elif self.network == 'iradon':
+            sinogram = file['sinogram']
+            sinogram = torch.tensor(sinogram, dtype = torch.float32)
+
+            return image[None,...], sinogram
+
         
         else:
             sinogram = file['sinogram']
@@ -68,6 +75,27 @@ class CT_odl(torch.utils.data.Dataset):
         image = torch.tensor(image, dtype = torch.float32)[None,...]
         fbp = torch.tensor(fbp, dtype = torch.float32)[None,...]
         sinogram = torch.tensor(sinogram, dtype = torch.float32)[None,...]
+        # print(image.shape, fbp.shape, sinogram.shape)
+
+        ################ Remove it later
+        # image = F.interpolate(image[None,...], size = image.shape[1]* (256//128),
+        #                 mode = 'bilinear',
+        #                 antialias= True,
+        #                 align_corners= True)[0]
+
+        
+        # fbp = F.interpolate(fbp[None,...], size = fbp.shape[1]* (256//128),
+        #                 mode = 'bilinear',
+        #                 antialias= True,
+        #                 align_corners= True)[0]
+
+        
+        # sinogram = F.interpolate(sinogram[None,...], size = (sinogram.shape[1],363),
+        #                 mode = 'bilinear',
+        #                 antialias= True,
+        #                 align_corners= True)[0]
+        
+        # print(image.shape, fbp.shape, sinogram.shape)
             
         return image, sinogram, fbp
 
@@ -121,6 +149,8 @@ class CT_images(torch.utils.data.Dataset):
         sinogram += noise
 
         image = torch.tensor(image, dtype = torch.float32)
+
+        print(image.shape, sinogram.shape)
 
 
         if self.unet:
