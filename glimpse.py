@@ -67,10 +67,10 @@ class glimpse(nn.Module):
             print(input_dim)
             fcs = []
             for _ in range(num_mlps):
-                fcs.append(MLP_net(input_dim, total_features//num_mlps, 370))
+                fcs.append(MLP_net(input_dim, total_features//num_mlps, 128))
 
 
-            self.mixer_MLP = MLP_net(total_features, 1, 370)
+            self.mixer_MLP = MLP_net(total_features, 1, 128)
             self.MLP = nn.ModuleList(fcs)
         
         elif self.network == 'MLP':

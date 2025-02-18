@@ -130,8 +130,15 @@ class CT_images(torch.utils.data.Dataset):
             image = imageio.imread(os.path.join(self.directory,file_name))
             image = (image/255.0)
 
+        elif self.subset == 'div2k':
+            image = imageio.imread(os.path.join(self.directory,file_name))
+            image = (image/255.0)
+            # print(image.shape)
+            image = np.mean(image, axis = 3)
+
         else:
             image = np.load(os.path.join(self.directory,file_name))
+        
     
 
         image = torch.tensor(image, dtype = torch.float32)[None,None]
@@ -150,7 +157,7 @@ class CT_images(torch.utils.data.Dataset):
 
         image = torch.tensor(image, dtype = torch.float32)
 
-        print(image.shape, sinogram.shape)
+        # print(image.shape, sinogram.shape)
 
 
         if self.unet:
@@ -163,3 +170,4 @@ class CT_images(torch.utils.data.Dataset):
             sinogram = torch.tensor(sinogram, dtype = torch.float32)
             image = image.reshape(-1, 1)
             return image, sinogram
+        

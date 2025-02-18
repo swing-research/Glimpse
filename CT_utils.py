@@ -17,10 +17,13 @@ def CT_sinogram(image_size = 128, n_angles = 30,
     gpu_num = 0
     device = torch.device('cuda:' + str(gpu_num) if torch.cuda.is_available() else 'cpu')
 
+
     train_images_dir = '../../datasets/CT/original_data/train'
     test_images_dir = '../../datasets/CT/original_data/test'
-    outlier_images_dir = '../datasets/CT_brain/test_samples/images'
-
+    # outlier_images_dir = '../datasets/CT_brain/test_samples/images'
+    # outlier_images_dir = '../../datasets/DIV2K/DIV2K_train_HR'
+    outlier_images_dir = '../../datasets/celeba_hq/celeba_hq_1024_train/samples'
+    
     train_images_names = os.listdir(train_images_dir)
     test_images_names = os.listdir(test_images_dir)
     outlier_images_names = os.listdir(outlier_images_dir)
@@ -42,7 +45,11 @@ def CT_sinogram(image_size = 128, n_angles = 30,
     if os.path.exists(test_data_folder) == False:
         os.mkdir(test_data_folder)
 
-    outlier_data_folder = data_folder + f'outlier/'
+    # outlier_data_folder = data_folder + f'outlier/'
+    # if os.path.exists(outlier_data_folder) == False:
+    #     os.mkdir(outlier_data_folder)
+    
+    outlier_data_folder = data_folder + f'celeba-hq/'
     if os.path.exists(outlier_data_folder) == False:
         os.mkdir(outlier_data_folder)
 
@@ -56,8 +63,8 @@ def CT_sinogram(image_size = 128, n_angles = 30,
     else:
         theta = np.linspace(0.0, 180.0, n_angles, endpoint=False)
 
-    n_samples = n_test + n_train + n_outlier
-    # n_samples = n_test + n_outlier
+    # n_samples = n_test + n_train + n_outlier
+    n_samples = n_outlier
 
     with tqdm(total=n_samples) as pbar:
         for i in range(n_samples):
@@ -65,6 +72,12 @@ def CT_sinogram(image_size = 128, n_angles = 30,
             if i < n_outlier:
                 image = imageio.imread(os.path.join(outlier_images_dir, outlier_images_names[i]))
                 image = (image/255.0)
+                image = np.mean(image, axis = 2)
+                h,w = image.shape
+                if h > w:
+                    image = image[:w,:w]
+                else:
+                    image = image[:h,:h]
 
             elif i < n_test + n_outlier and i >= n_outlier :
                 image = np.load(os.path.join(test_images_dir, test_images_names[i-n_outlier]))
@@ -96,7 +109,11 @@ def CT_sinogram(image_size = 128, n_angles = 30,
                 print('First sample is saved.')
             
             if i < n_outlier:
-                np.savez(outlier_data_folder + f'outlier_{i}.npz',
+                # np.savez(outlier_data_folder + f'outlier_{i}.npz',
+                #          image = image,
+                #          sinogram = sinogram,
+                #          fbp = fbp)
+                np.savez(outlier_data_folder + f'sample_{i}.npz',
                          image = image,
                          sinogram = sinogram,
                          fbp = fbp)
@@ -124,5 +141,5 @@ def CT_sinogram(image_size = 128, n_angles = 30,
 if __name__ == '__main__':
     CT_sinogram(image_size = 128,
                 missing_cone= 'complete',
-                n_angles= 90,
+                n_angles= 30,
                 noise_snr= 30)
