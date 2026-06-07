@@ -1,0 +1,13 @@
+# Core runtime dependencies for GLIMPSE.
+# Install with:  pip install -r requirements.txt   (then optionally: pip install -e .)
+torch>=1.12
+torchvision>=0.13
+numpy>=1.21
+scipy>=1.7
+scikit-image>=0.19
+matplotlib>=3.5
+imageio>=2.19
+tqdm>=4.62
+pyyaml>=6.0
+huggingface_hub>=0.24   # optional: GlimpseModel.from_pretrained / push_to_hub
+safetensors>=0.4        # used by save_pretrained / from_pretrained

@@ -1,0 +1,37 @@
+# GLIMPSE environment for the ODL forward operator (geometry: 'odl').
+#
+# Adds ODL + astra-toolbox (GPU ray transform) on top of the core deps. Use this
+# instead of environment.yml when training/evaluating with `configs/odl.yaml`.
+#
+#   conda env create -f environment-odl.yml
+#   conda activate glimpse-odl
+#   pip install -e .
+#
+# Notes
+#  * astra's CUDA backend (impl='astra_cuda') needs an NVIDIA GPU + driver and a
+#    CUDA-enabled astra-toolbox build (the conda-forge build pulls the CUDA
+#    runtime automatically on Linux).
+#  * Tested with: python 3.9, odl 0.8.2, astra-toolbox 2.4.0, torch 2.8 (cu12x).
+name: glimpse-odl
+channels:
+  - conda-forge
+  - astra-toolbox
+dependencies:
+  - python=3.9
+  - odl
+  - astra-toolbox
+  - numpy
+  - scipy
+  - ipykernel
+  - jupyter
+  - pip
+  - pip:
+      - torch
+      - torchvision
+      - scikit-image
+      - imageio
+      - matplotlib
+      - tqdm
+      - pyyaml
+      - huggingface_hub
+      - safetensors

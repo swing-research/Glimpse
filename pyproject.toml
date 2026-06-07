@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glimpse-ct"
+version = "0.1.0"
+description = "GLIMPSE: Generalized Local Imaging with MLPs — coordinate-based sparse-view CT reconstruction."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "AmirEhsan Khorashadizadeh", email = "amir.kh@unibas.ch" },
+]
+keywords = ["computed tomography", "inverse problems", "implicit neural representation", "deep learning"]
+dependencies = [
+    "torch>=1.12",
+    "torchvision>=0.13",
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "scikit-image>=0.19",
+    "matplotlib>=3.5",
+    "imageio>=2.19",
+    "tqdm>=4.62",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2401.00816"
+Repository = "https://github.com/swing-research/Glimpse"
+
+[project.scripts]
+glimpse-train = "train:main"
+
+[tool.setuptools]
+packages = ["glimpse"]

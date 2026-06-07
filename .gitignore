@@ -1,0 +1,29 @@
+# Datasets and experiment outputs (large, regenerated locally)
+datasets/
+experiments/
+
+# Model checkpoints — but keep the published pretrained weights
+*.pt
+!glimpse.pt
+
+# Rendered data
+*.npz
+*.npy
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.ipynb_checkpoints/
+
+# Local Claude Code guidance (not for the public repo)
+CLAUDE.md
+
+# Editors / OS
+.DS_Store
+._*
+.vscode/
+.idea/

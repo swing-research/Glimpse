@@ -1,0 +1,50 @@
+# ============================================================================
+# GLIMPSE — uncalibrated-geometry experiment
+# ============================================================================
+# The model is told *jittered* projection angles (theta_init != theta_actual)
+# and must recover the true geometry via the learnable sensor geometry
+# (learn_geometry: true). Demonstrates robustness to sensor miscalibration.
+#
+#   python train.py --config configs/uncalibrated.yaml
+
+# ---- Acquisition geometry (must match the dataset) -------------------------
+image_size: 128            # reconstructed image side length, in pixels
+n_angles: 30               # number of projection angles (views)
+noise_snr: 30              # measurement noise, signal-to-noise ratio in dB
+geometry: 'odl'            # forward operator: 'odl' (GPU, recommended) | 'skimage' (CPU)
+circle: false              # ODL only: false = image whole square | true = inscribed circle
+
+# ---- Sensor (mis)calibration -----------------------------------------------
+# 'random' jitters the told angles; the model recovers them during training.
+#   'No' (calibrated) | 'random' (jittered) | 'fixed' (offset) | 'blind' (unknown)
+uncalibrated_type: 'random'
+
+# ---- Model -----------------------------------------------------------------
+patch_size: 9              # side length of the local 'glimpse' patch
+head_type: 'MLP'           # prediction head: 'MLP' | 'multi_MLP'
+filter_name: 'ramp'        # FBP filter init: 'ramp'|'shepp-logan'|'cosine'|'hamming'|'hann'
+learnable_filter: true     # let training adapt the Fourier (FBP) filter
+learn_geometry: true       # KEY here: learn/recover the true sensor geometry
+patch_shape: 'round'       # local sampling pattern: 'round'|'square'|'random'
+learn_patch: true          # learn the local sampling-patch point pattern
+
+# ---- Training --------------------------------------------------------------
+epochs: 3000               # number of training epochs
+batch_size: 64             # images per mini-batch
+lr: 0.0001                 # Adam learning rate
+pixels_per_step: 512       # random pixels optimised per gradient step
+steps_per_batch: 3         # gradient steps taken on each image mini-batch
+train: true                # if false, only evaluate (no training)
+restore_model: true        # reload the checkpoint (if present) before training
+
+# ---- Data (RAW image folders; sinograms rendered on the fly) ---------------
+train_path: 'datasets/train'
+test_path: 'datasets/test'
+ood_path: 'datasets/ood'
+
+# ---- Experiment / evaluation -----------------------------------------------
+exp_desc: 'uncalibrated_random'
+gpu: 0
+ood_analysis: true
+sample_number: 1
+cmap: 'gray'
