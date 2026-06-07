@@ -137,7 +137,9 @@ curl -L -O -J https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC/download
 | Complete LoDoPaB-CT | [download](https://drive.switch.ch/index.php/s/XzMbtHQFrQsLgxC) | full |
 
 Sinograms are rendered on the fly from these raw images (no pre-processing step), so just point
-`train_path` / `test_path` / `ood_path` at the extracted folders.
+`train_path` / `test_path` / `ood_path` at the extracted folders. The same data is also mirrored on the
+🤗 Hub at [`AmirEhsan1995/lodopab-ct-glimpse`](https://huggingface.co/datasets/AmirEhsan1995/lodopab-ct-glimpse)
+(see [Hugging Face Hub](#hugging-face-hub) for a one-line download).
 
 ## Results (small test subset, 50 views, calibrated)
 
@@ -162,14 +164,15 @@ sensor geometry during training. See [`configs/uncalibrated.yaml`](configs/uncal
 ## Hugging Face Hub
 
 `GlimpseModel` integrates with the [🤗 Hub](https://huggingface.co/docs/hub) via `PyTorchModelHubMixin`, so a
-checkpoint can be shared and loaded in one line:
+checkpoint can be shared and loaded in one line. The pretrained 50-view model is published at
+[`AmirEhsan1995/Glimpse`](https://huggingface.co/AmirEhsan1995/Glimpse):
 
 ```python
 from glimpse import GlimpseModel
-model = GlimpseModel.from_pretrained("your-username/glimpse-lodopab-128-50").eval()
+model = GlimpseModel.from_pretrained("AmirEhsan1995/Glimpse").eval()
 ```
 
-Publish a trained checkpoint (after `huggingface-cli login`):
+Publish your own trained checkpoint (after `huggingface-cli login`):
 
 ```sh
 python scripts/push_to_hub.py --config configs/lodopab.yaml --checkpoint glimpse.pt \
@@ -177,7 +180,16 @@ python scripts/push_to_hub.py --config configs/lodopab.yaml --checkpoint glimpse
 # add --local-only to preview the config.json / model.safetensors / README first
 ```
 
-And the raw datasets:
+The datasets are also published on the Hub at
+[`AmirEhsan1995/lodopab-ct-glimpse`](https://huggingface.co/datasets/AmirEhsan1995/lodopab-ct-glimpse)
+(`train`/`test` LoDoPaB-CT under ODC-By, `ood` brain CT under CC BY 4.0) and can be pulled directly:
+
+```python
+from huggingface_hub import snapshot_download
+snapshot_download("AmirEhsan1995/lodopab-ct-glimpse", repo_type="dataset", local_dir="datasets")
+```
+
+To publish your own copy (after `huggingface-cli login`):
 
 ```sh
 python scripts/push_dataset_to_hub.py --data-dir datasets --repo-id your-username/lodopab-ct-glimpse
