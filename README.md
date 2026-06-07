@@ -3,7 +3,7 @@
 [![IEEE TMI](https://img.shields.io/badge/IEEE%20TMI-published-blue)](https://ieeexplore.ieee.org/abstract/document/11018464)
 [![Paper](https://img.shields.io/badge/arXiv-2401.00816-red)](https://arxiv.org/abs/2401.00816)
 [![PWC](https://img.shields.io/badge/PapersWithCode-report-blue)](https://paperswithcode.com/paper/glimpse-generalized-local-imaging-with-mlps)
-[![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1f_YvD9WwKHN1NojIOC-HHGXAT4VgQHkz?usp=sharing)
+[![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/swing-research/Glimpse/blob/main/notebooks/glimpse_colab.ipynb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 Official PyTorch implementation of **GLIMPSE: Generalized Locality for Scalable and Robust CT**, published in
